@@ -1,33 +1,46 @@
 import { useMemo, useState } from "react";
-import {
-  accountsRows,
-  accountStageClasses,
-  accountStageOptions,
-} from "../../data/accountsData";
+import { accountsRows, accountStageOptions } from "../../data/accountsData";
+
+const customFilterFields = [
+  { label: "Company Name", value: "company" },
+  { label: "Website", value: "site" },
+  { label: "Owner", value: "owner" },
+  { label: "Location", value: "location" },
+  { label: "Source", value: "source" },
+  { label: "Stage", value: "stage" },
+  { label: "Last Activity", value: "activity" },
+  { label: "Created", value: "created" },
+  { label: "Follow Up Date", value: "followUpDate" },
+];
+
+const getAccountFieldValue = (row, field) => {
+  if (field === "stage") {
+    return row.stage ?? "Created";
+  }
+
+  return row[field] ?? "";
+};
 
 export default function AccountsPage() {
-  const [accountStages, setAccountStages] = useState(
-    Object.fromEntries(accountsRows.map((row) => [row.company, "Created"])),
-  );
-  const [selectedOwner, setSelectedOwner] = useState("All");
   const [selectedStage, setSelectedStage] = useState("All");
-
-  const ownerOptions = useMemo(
-    () => ["All", ...Array.from(new Set(accountsRows.map((row) => row.owner)))],
-    [],
-  );
+  const [customFilterField, setCustomFilterField] = useState("company");
+  const [customFilterValue, setCustomFilterValue] = useState("");
 
   const filteredRows = useMemo(
     () =>
       accountsRows.filter((row) => {
-        const ownerMatch =
-          selectedOwner === "All" || row.owner === selectedOwner;
         const stageMatch =
-          selectedStage === "All" ||
-          accountStages[row.company] === selectedStage;
-        return ownerMatch && stageMatch;
+          selectedStage === "All" || (row.stage ?? "Created") === selectedStage;
+        const customSearch = customFilterValue.trim().toLowerCase();
+        const customMatch =
+          customSearch === "" ||
+          String(getAccountFieldValue(row, customFilterField))
+            .toLowerCase()
+            .includes(customSearch);
+
+        return stageMatch && customMatch;
       }),
-    [selectedOwner, selectedStage, accountStages],
+    [selectedStage, customFilterField, customFilterValue],
   );
 
   return (
@@ -63,20 +76,31 @@ export default function AccountsPage() {
               ))}
             </select>
           </label>
-          <label className="rounded-full bg-slate-100 px-3 py-1 text-xl text-slate-800">
-            Owner:{" "}
-            <select
-              value={selectedOwner}
-              onChange={(e) => setSelectedOwner(e.target.value)}
-              className="bg-transparent text-xl outline-none"
-            >
-              {ownerOptions.map((owner) => (
-                <option key={owner} value={owner}>
-                  {owner}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="flex overflow-hidden rounded-lg border border-slate-300 bg-white shadow-sm">
+            <label className="flex items-center gap-2 border-r border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold uppercase tracking-wide text-slate-500">
+              Field
+              <select
+                value={customFilterField}
+                onChange={(e) => setCustomFilterField(e.target.value)}
+                className="bg-transparent text-base font-medium normal-case tracking-normal text-slate-800 outline-none"
+              >
+                {customFilterFields.map((field) => (
+                  <option key={field.value} value={field.value}>
+                    {field.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex items-center gap-2 px-3 py-2 text-sm font-semibold uppercase tracking-wide text-slate-500">
+              Search
+              <input
+                value={customFilterValue}
+                onChange={(e) => setCustomFilterValue(e.target.value)}
+                placeholder="Type value"
+                className="w-56 bg-transparent text-base font-medium normal-case tracking-normal text-slate-900 outline-none placeholder:text-slate-400"
+              />
+            </label>
+          </div>
         </div>
       </div>
 
@@ -85,12 +109,6 @@ export default function AccountsPage() {
           <table className="min-w-[1100px] w-full">
             <thead className="bg-slate-50 text-left text-sm font-semibold uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="px-5 py-4">
-                  <input
-                    type="checkbox"
-                    className="h-5 w-5 rounded border-slate-300"
-                  />
-                </th>
                 <th className="px-5 py-4">Company Name</th>
                 <th className="px-5 py-4">Owner</th>
                 <th className="px-5 py-4">Location</th>
@@ -98,7 +116,7 @@ export default function AccountsPage() {
                 <th className="px-5 py-4">Stage</th>
                 <th className="px-5 py-4">Last Activity</th>
                 <th className="px-5 py-4">Created</th>
-                <th className="px-5 py-4">Actions</th>
+                <th className="px-5 py-4">Follow Up Date</th>
               </tr>
             </thead>
             <tbody>
@@ -107,80 +125,44 @@ export default function AccountsPage() {
                   key={row.company}
                   className="border-t border-slate-200 align-top"
                 >
-                  <td className="px-5 py-5">
-                    <input
-                      type="checkbox"
-                      className="h-5 w-5 rounded border-slate-300"
-                    />
-                  </td>
-                  <td className="px-5 py-5">
+                  <td className="px-5 py-4">
                     <div className="flex items-start gap-3">
                       <div
-                        className={`flex h-11 w-11 items-center justify-center rounded-md text-xl font-semibold ${row.color}`}
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-base font-semibold ${row.color}`}
                       >
                         {row.init}
                       </div>
                       <div>
-                        <p className="text-3xl font-semibold leading-none">
+                        <p className="text-lg font-semibold leading-8 text-slate-950">
                           {row.company}
                         </p>
-                        <p className="mt-2 text-xl text-slate-400">
+                        <p className="mt-1 text-sm leading-5 text-slate-400">
                           {row.site}
                         </p>
                       </div>
                     </div>
                   </td>
-                  <td className="px-5 py-5">
-                    <div className="flex items-start gap-3">
-                      <div className="h-9 w-9 overflow-hidden rounded-full bg-slate-100">
-                        <img
-                          src={`https://api.dicebear.com/9.x/personas/svg?seed=${encodeURIComponent(row.owner)}`}
-                          alt={row.owner}
-                        />
-                      </div>
-                      <p className="text-3xl leading-tight">{row.owner}</p>
-                    </div>
+                  <td className="px-5 py-4 text-lg leading-6 text-slate-900">
+                    {row.owner}
                   </td>
-                  <td className="px-5 py-5 text-3xl leading-tight text-slate-800">
+                  <td className="px-5 py-4 text-lg leading-6 text-slate-800">
                     {row.location}
                   </td>
-                  <td className="px-5 py-5">
-                    <div className="flex flex-wrap gap-2">
-                      {row.source.map((src) => (
-                        <span
-                          key={src}
-                          className={`rounded-full px-3 py-1 text-sm font-semibold ${src === "LINKEDIN" ? "bg-emerald-100 text-emerald-700" : src === "EMAIL" || src === "CAMPAIGN" ? "bg-violet-100 text-violet-700" : "bg-slate-100 text-slate-700"}`}
-                        >
-                          {src}
-                        </span>
-                      ))}
-                    </div>
+                  <td className="px-5 py-4 text-lg leading-6 text-slate-800">
+                    {row.source}
                   </td>
-                  <td className="px-5 py-5">
-                    <select
-                      value={accountStages[row.company]}
-                      onChange={(e) =>
-                        setAccountStages((prev) => ({
-                          ...prev,
-                          [row.company]: e.target.value,
-                        }))
-                      }
-                      className={`rounded-full border-0 px-3 py-1 text-sm font-semibold ${accountStageClasses[accountStages[row.company]]}`}
-                    >
-                      {accountStageOptions.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
+                  <td className="px-5 py-4 text-lg leading-6 text-slate-800">
+                    {row.stage ?? "Created"}
                   </td>
-                  <td className="px-5 py-5 text-3xl text-slate-500">
+                  <td className="px-5 py-4 text-lg leading-6 text-slate-500">
                     {row.activity}
                   </td>
-                  <td className="px-5 py-5 text-3xl text-slate-500">
+                  <td className="px-5 py-4 text-lg leading-6 text-slate-500">
                     {row.created}
                   </td>
-                  <td className="px-5 py-5 text-4xl text-slate-400">...</td>
+                  <td className="px-5 py-4 text-lg leading-6 text-slate-500">
+                    {row.followUpDate}
+                  </td>
                 </tr>
               ))}
             </tbody>
