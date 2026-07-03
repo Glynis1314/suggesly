@@ -6,8 +6,8 @@ export default function AppShell({ activeTab, setActiveTab, children }) {
   const [drawerOpen, setDrawerOpen] = React.useState(false);
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900">
-      <div className="flex min-h-screen">
+    <div className="min-h-screen bg-slate-100 text-slate-900 overflow-hidden">
+      <div className="flex min-h-screen overflow-hidden">
         <SideDrawer
           activeTab={activeTab}
           setActiveTab={setActiveTab}
@@ -15,7 +15,7 @@ export default function AppShell({ activeTab, setActiveTab, children }) {
           onClose={() => setDrawerOpen(false)}
         />
 
-        <main className="w-full">
+        <main className="w-full overflow-hidden">
           <Header onOpenDrawer={() => setDrawerOpen(true)} />
           {children}
         </main>
