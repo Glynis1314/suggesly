@@ -1,7 +1,27 @@
 import { useMemo, useState } from 'react';
 import { contactsRows, contactStageOptions } from '../../data/contactsData';
+import { accountsRows } from '../../data/accountsData';
 import StatCard from '../../components/StatCard';
 import EditableCell from '../../components/EditableCell';
+import AddContactModal from '../../components/AddContactModal';
+import BulkImportModal from '../../components/BulkImportModal';
+
+const contactSampleHeaders = [
+  'Contact Name',
+  'Contact Owner',
+  'Associated Company Name',
+  'Contact Job Title',
+  'Contact Email',
+  'Contact Phone Number',
+  'Contact LinkedIn',
+  'Contact Stage',
+  'Contact Country',
+  'Contact City',
+  'Notes',
+  'Next Task',
+  'Persona/Department',
+  'Last Contacted Date',
+];
 
 function FilterIcon({ className = 'h-5 w-5' }) {
   return (
@@ -26,6 +46,8 @@ const pageSize = 5;
 
 export default function ContactsPage() {
   const [rows, setRows] = useState(contactsRows);
+  const [showAddContact, setShowAddContact] = useState(false);
+  const [showBulkImport, setShowBulkImport] = useState(false);
   const [selectedStage, setSelectedStage] = useState('All');
   const [selectedOwner, setSelectedOwner] = useState('Me');
   const [selectedCountry, setSelectedCountry] = useState('Any');
@@ -92,10 +114,87 @@ export default function ContactsPage() {
           <h1 className="mt-2 text-5xl font-semibold">Contacts</h1>
         </div>
         <div className="flex gap-3">
-          <button className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-xl font-medium text-slate-700">Export</button>
-          <button className="rounded-xl bg-emerald-700 px-5 py-3 text-xl font-medium text-white">+ New Contact</button>
+          <button
+            type="button"
+            onClick={() => setShowBulkImport(true)}
+            className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-xl font-medium text-slate-700 transition hover:bg-slate-50"
+          >
+            Bulk Import
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowAddContact(true)}
+            className="rounded-xl bg-emerald-700 px-5 py-3 text-xl font-medium text-white transition hover:bg-emerald-800"
+          >
+            + New Contact
+          </button>
         </div>
       </div>
+
+      <AddContactModal
+        open={showAddContact}
+        onClose={() => setShowAddContact(false)}
+        stageOptions={contactStageOptions}
+        companyOptions={accountsRows.map((row) => row.company)}
+        onCreate={(newContact) => {
+          setRows((current) => [newContact, ...current]);
+          setShowAddContact(false);
+        }}
+      />
+
+      <BulkImportModal
+        open={showBulkImport}
+        onClose={() => setShowBulkImport(false)}
+        entityLabel="contact"
+        entityLabelPlural="contacts"
+        sampleHeaders={contactSampleHeaders}
+        requiredFields={['Contact Name', 'Contact Owner', 'Contact Email', 'Contact Stage']}
+        onImport={(importedRows) => {
+          const mapped = importedRows.map((row) => {
+            const name = row['Contact Name'] || '';
+            const initials = name
+              .trim()
+              .split(/\s+/)
+              .map((part) => part[0])
+              .join('')
+              .slice(0, 2)
+              .toUpperCase();
+            const today = new Date().toISOString().slice(0, 10);
+            const displayDate = new Date().toLocaleDateString('en-US', {
+              month: 'short',
+              day: '2-digit',
+              year: 'numeric',
+            });
+            return {
+              name,
+              initials: initials || '?',
+              company: row['Associated Company Name'] || '',
+              email: row['Contact Email'] || '',
+              phone: row['Contact Phone Number'] || '',
+              location: [row['Contact City'], row['Contact Country']].filter(Boolean).join(', '),
+              country: row['Contact Country'] || '',
+              city: row['Contact City'] || '',
+              owner: row['Contact Owner'] || '',
+              jobTitle: row['Contact Job Title'] || '',
+              linkedin: row['Contact LinkedIn'] || '',
+              stage: row['Contact Stage'] || '',
+              activity: displayDate,
+              created: displayDate,
+              notes: row['Notes'] || '',
+              nextTask: row['Next Task'] || '',
+              persona: row['Persona/Department'] || '',
+              lastContactedDate: row['Last Contacted Date'] || '',
+              contactId: `con-import-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+              createdBy: 'Alex Rivera',
+              updatedBy: 'Alex Rivera',
+              createdDateSystem: today,
+              modifiedDate: today,
+            };
+          });
+          setRows((current) => [...mapped, ...current]);
+          setShowBulkImport(false);
+        }}
+      />
 
       <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-4">
         <StatCard title="Total Contacts" value="12,482" delta="+4.2%" />

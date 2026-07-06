@@ -1,7 +1,13 @@
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import App from './App';
 
-test('renders dashboard as default tab', () => {
-  render(<App />);
-  expect(screen.getAllByText(/Dashboard/i).length).toBeGreaterThan(0);
+test('redirects unauthenticated users to the login page', () => {
+  render(
+    <MemoryRouter initialEntries={['/']}>
+      <App />
+    </MemoryRouter>
+  );
+
+  expect(screen.getByRole('heading', { name: /welcome back/i })).toBeInTheDocument();
 });

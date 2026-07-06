@@ -3,6 +3,8 @@ import FilterPill from '../../components/FilterPill';
 import EditableCell from '../../components/EditableCell';
 import OwnerAvatar from '../../components/OwnerAvatar';
 import StageBadge from '../../components/StageBadge';
+import AddCompanyModal from '../../components/AddCompanyModal';
+import BulkImportModal from '../../components/BulkImportModal';
 import {
   accountsRows,
   accountStageOptions,
@@ -10,6 +12,23 @@ import {
   accountSourceOptions,
   accountEmployeeSizeOptions,
 } from '../../data/accountsData';
+
+const companySampleHeaders = [
+  'Company Name',
+  'Owner',
+  'Source',
+  'Priority',
+  'Stage',
+  'Notes',
+  'Next Step',
+  'Next Action Date',
+  'Last Activity Date',
+  'Created Date',
+  'Country',
+  'City',
+  'Employee Size',
+  'LinkedIn URL',
+];
 
 const viewOptions = ['All Companies', 'My Companies', 'Recently Updated'];
 const propertyOptions = [
@@ -71,6 +90,8 @@ function parseDate(value) {
 
 export default function AccountsPage() {
   const [rows, setRows] = useState(accountsRows);
+  const [showAddCompany, setShowAddCompany] = useState(false);
+  const [showBulkImport, setShowBulkImport] = useState(false);
   const [selectedView, setSelectedView] = useState('All Companies');
   const [globalSearch, setGlobalSearch] = useState('');
   const [filters, setFilters] = useState([]);
@@ -267,14 +288,68 @@ export default function AccountsPage() {
           <h1 className="mt-2 text-5xl font-semibold">Companies</h1>
         </div>
         <div className="flex gap-3">
-          <button className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-xl font-medium text-slate-700">
-            Export
+          <button
+            type="button"
+            onClick={() => setShowBulkImport(true)}
+            className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-xl font-medium text-slate-700 transition hover:bg-slate-50"
+          >
+            Bulk Import
           </button>
-          <button className="rounded-xl bg-emerald-700 px-5 py-3 text-xl font-medium text-white">
+          <button
+            type="button"
+            onClick={() => setShowAddCompany(true)}
+            className="rounded-xl bg-emerald-700 px-5 py-3 text-xl font-medium text-white transition hover:bg-emerald-800"
+          >
             + New Company
           </button>
         </div>
       </div>
+
+      <AddCompanyModal
+        open={showAddCompany}
+        onClose={() => setShowAddCompany(false)}
+        stageOptions={accountStageOptions}
+        priorityOptions={accountPriorityOptions}
+        sourceOptions={accountSourceOptions}
+        employeeSizeOptions={accountEmployeeSizeOptions}
+        onCreate={(newCompany) => {
+          setRows((current) => [newCompany, ...current]);
+          setShowAddCompany(false);
+        }}
+      />
+
+      <BulkImportModal
+        open={showBulkImport}
+        onClose={() => setShowBulkImport(false)}
+        entityLabel="company"
+        entityLabelPlural="companies"
+        sampleHeaders={companySampleHeaders}
+        requiredFields={['Company Name', 'Owner', 'Stage']}
+        onImport={(importedRows) => {
+          const mapped = importedRows.map((row, index) => ({
+            company: row['Company Name'] || '',
+            site: '',
+            owner: row['Owner'] || '',
+            source: row['Source'] ? [row['Source']] : [],
+            priority: row['Priority'] || '',
+            stage: row['Stage'] || '',
+            notes: row['Notes'] || '',
+            nextSteps: row['Next Step'] || '',
+            nextActionDate: row['Next Action Date'] || '',
+            lastActivityDate: row['Last Activity Date'] || '',
+            createdDate: row['Created Date'] || new Date().toISOString().slice(0, 10),
+            country: row['Country'] || '',
+            city: row['City'] || '',
+            employeeSize: row['Employee Size'] || '',
+            linkedin: row['LinkedIn URL'] || '',
+            companyId: `acc-import-${Date.now()}-${index}`,
+            color: 'bg-slate-100 text-slate-700',
+            init: (row['Company Name'] || '?').charAt(0).toUpperCase(),
+          }));
+          setRows((current) => [...mapped, ...current]);
+          setShowBulkImport(false);
+        }}
+      />
 
       <div className="mb-4 rounded-2xl border border-slate-300 bg-white p-5">
         <div className="flex flex-wrap items-center gap-3" ref={viewRef}>

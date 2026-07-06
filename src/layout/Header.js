@@ -1,4 +1,8 @@
 import React from 'react';
+import { HelpCircle, LogOut, Mail, Settings, Bell } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import Avatar from '../components/Avatar';
+import { clearSession, readStoredUser } from '../utils/auth';
 
 function SearchIcon() {
   return (
@@ -23,6 +27,41 @@ function IconButton({ children, label, onClick }) {
 }
 
 export default function Header() {
+  const navigate = useNavigate();
+  const [open, setOpen] = React.useState(false);
+  const menuRef = React.useRef(null);
+  const profile = readStoredUser();
+
+  React.useEffect(() => {
+    if (!open) return undefined;
+
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [open]);
+
+  const handleLogout = () => {
+    clearSession();
+    setOpen(false);
+    navigate('/login', { replace: true });
+  };
+
   return (
     <header className="sticky top-0 z-20 flex h-20 items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur md:px-8">
       <div className="flex flex-1 items-center gap-3">
@@ -39,43 +78,67 @@ export default function Header() {
       <div className="ml-6 flex items-center gap-4">
         <div className="flex items-center gap-3">
           <IconButton label="Mail" onClick={() => {}}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
-              <rect x="3" y="5" width="18" height="14" rx="2" />
-              <path d="m4 7 8 6 8-6" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+            <Mail size={18} />
           </IconButton>
           <IconButton label="Notifications" onClick={() => {}}>
             <div className="relative">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
-                <path d="M9 18h6" strokeLinecap="round" />
-                <path d="M6 16V10a6 6 0 0 1 12 0v6" strokeLinecap="round" />
-                <path d="M8 16h8" strokeLinecap="round" />
-              </svg>
+              <Bell size={18} />
               <span className="absolute right-0 top-0 h-2.5 w-2.5 rounded-full bg-red-500" />
             </div>
           </IconButton>
           <IconButton label="Help" onClick={() => {}}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
-              <circle cx="12" cy="12" r="9" />
-              <path d="M9.5 9.5a2.5 2.5 0 0 1 4.7 1.2c0 1.5-2.2 2.2-2.2 3.8" strokeLinecap="round" />
-              <circle cx="12" cy="16.5" r="0.8" fill="currentColor" stroke="none" />
-            </svg>
+            <HelpCircle size={18} />
           </IconButton>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="hidden text-right md:block">
-            <p className="text-lg font-semibold">Alex Rivera</p>
-            <p className="text-xs tracking-wide text-slate-400">Account Executive</p>
-          </div>
+        <div className="relative" ref={menuRef}>
+          <button
+            type="button"
+            className="flex items-center gap-3 rounded-full px-2 py-1 text-left transition hover:bg-slate-100"
+            onClick={() => setOpen((value) => !value)}
+          >
+            <div className="hidden text-right md:block">
+              <p className="text-sm font-semibold text-slate-900">{profile?.name || 'Alex Rivera'}</p>
+              <p className="text-xs tracking-wide text-slate-400">{profile?.role || 'Account Executive'}</p>
+            </div>
 
-          <div className="h-11 w-11 overflow-hidden rounded-full bg-orange-100">
-            <img
-              src="https://api.dicebear.com/9.x/personas/svg?seed=Alex%20Rivera"
-              alt="Profile"
-              className="h-full w-full"
-            />
-          </div>
+            <Avatar src="https://api.dicebear.com/9.x/personas/svg?seed=Alex%20Rivera" alt="Profile" size="md" />
+          </button>
+
+          {open ? (
+            <div className="absolute right-0 mt-2 w-64 rounded-lg border border-slate-200 bg-white p-2 shadow-lg">
+              <div className="flex items-center gap-3 px-3 py-3">
+                <Avatar src="https://api.dicebear.com/9.x/personas/svg?seed=Alex%20Rivera" alt="Profile" size="lg" />
+                <div>
+                  <p className="font-semibold text-slate-900">{profile?.name || 'Alex Rivera'}</p>
+                  <p className="text-xs text-slate-500">{profile?.email || 'alex@example.com'}</p>
+                  <p className="text-xs text-slate-400">{profile?.role || 'Account Executive'}</p>
+                </div>
+              </div>
+
+              <div className="my-2 border-t border-slate-100" />
+
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-50"
+                onClick={() => navigate('/settings')}
+              >
+                <Settings size={16} />
+                <span>Settings</span>
+              </button>
+
+              <div className="my-2 border-t border-slate-100" />
+
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-red-600 transition hover:bg-red-50"
+                onClick={handleLogout}
+              >
+                <LogOut size={16} />
+                <span>Log Out</span>
+              </button>
+            </div>
+          ) : null}
         </div>
       </div>
     </header>

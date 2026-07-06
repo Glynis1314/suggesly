@@ -6,6 +6,27 @@ import OwnerAvatar from '../../components/OwnerAvatar';
 import CurrencyCell from '../../components/CurrencyCell';
 import DateCell from '../../components/DateCell';
 import TaskListCell from '../../components/TaskListCell';
+import AddDealModal from '../../components/AddDealModal';
+import BulkImportModal from '../../components/BulkImportModal';
+import { dealStageOptions } from '../../data/dealsData';
+import { accountsRows } from '../../data/accountsData';
+import { contactsRows } from '../../data/contactsData';
+
+const dealSampleHeaders = [
+  'Deal Name',
+  'Associated Company',
+  'Associated Contacts',
+  'Deal Value',
+  'Deal Owner',
+  'Deal Stage',
+  'Deal Source',
+  'Expected Close Date',
+  'Next Step',
+  'Next Step Due Date',
+  'Lost Reason',
+  'Won Reason',
+  'Deal Notes',
+];
 
 const viewOptions = ['All Deals', 'My Deals', 'Closing Soon'];
 const stageOptions = ['All', 'Deal Created', 'POC', 'Proposal', 'Nurture', 'Closed Won', 'Closed Lost'];
@@ -51,7 +72,9 @@ const sortDeals = (deals, key, direction) => {
 
 export default function DealsPage() {
   const navigate = useNavigate();
-  const { deals } = useDeals();
+  const { deals, createDeal } = useDeals();
+  const [showAddDeal, setShowAddDeal] = useState(false);
+  const [showBulkImport, setShowBulkImport] = useState(false);
   const [globalSearch, setGlobalSearch] = useState('');
   const [selectedView, setSelectedView] = useState('All Deals');
   const [selectedStage, setSelectedStage] = useState('All');
@@ -267,17 +290,76 @@ export default function DealsPage() {
           <h1 className="mt-2 text-5xl font-semibold">Deals</h1>
         </div>
         <div className="flex gap-3">
-          <button className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-xl font-medium text-slate-700">
-            Export
+          <button
+            type="button"
+            onClick={() => setShowBulkImport(true)}
+            className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-xl font-medium text-slate-700 transition hover:bg-slate-50"
+          >
+            Bulk Import
           </button>
           <button
-            className="rounded-xl bg-emerald-700 px-5 py-3 text-xl font-medium text-white"
-            onClick={() => navigate('/deals')}
+            type="button"
+            className="rounded-xl bg-emerald-700 px-5 py-3 text-xl font-medium text-white transition hover:bg-emerald-800"
+            onClick={() => setShowAddDeal(true)}
           >
             + New Deal
           </button>
         </div>
       </div>
+
+      <AddDealModal
+        open={showAddDeal}
+        onClose={() => setShowAddDeal(false)}
+        stageOptions={dealStageOptions}
+        companyOptions={accountsRows.map((row) => row.company)}
+        contactOptions={contactsRows.map((row) => row.name)}
+        onCreate={(newDeal) => {
+          createDeal(newDeal);
+          setShowAddDeal(false);
+        }}
+      />
+
+      <BulkImportModal
+        open={showBulkImport}
+        onClose={() => setShowBulkImport(false)}
+        entityLabel="deal"
+        entityLabelPlural="deals"
+        sampleHeaders={dealSampleHeaders}
+        requiredFields={['Deal Name', 'Associated Company', 'Deal Value', 'Deal Owner', 'Deal Stage']}
+        onImport={(importedRows) => {
+          importedRows.forEach((row, index) => {
+            const now = new Date().toISOString();
+            createDeal({
+              id: `${(row['Deal Name'] || 'deal').replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase()}-${Date.now()}-${index}`,
+              dealName: row['Deal Name'] || '',
+              dealSize: Number(row['Deal Value']) || 0,
+              dealOwner: row['Deal Owner'] || '',
+              dealSourceOwner: '',
+              dealSourceOwnerName: '',
+              dealStage: row['Deal Stage'] || '',
+              dealCreatedDate: now,
+              lastActivityDate: now,
+              remarks: row['Deal Notes'] || '',
+              associatedCompany: row['Associated Company'] || '',
+              primaryContact: (row['Associated Contacts'] || '').split(',')[0]?.trim() || '',
+              associatedContacts: (row['Associated Contacts'] || '')
+                .split(',')
+                .map((item) => item.trim())
+                .filter(Boolean),
+              expectedCloseDate: row['Expected Close Date'] || '',
+              dealProbability: 0,
+              lostReason: row['Lost Reason'] || '',
+              wonReason: row['Won Reason'] || '',
+              nextAction: row['Next Step'] || '',
+              nextStepDueDate: row['Next Step Due Date'] || '',
+              country: '',
+              city: '',
+              source: row['Deal Source'] || '',
+            });
+          });
+          setShowBulkImport(false);
+        }}
+      />
 
       <div className="mb-4 rounded-2xl border border-slate-300 bg-white p-5">
         <div className="flex flex-wrap items-center gap-3">
