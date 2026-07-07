@@ -1,9 +1,34 @@
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useDeals } from '../../context/DealsContext';
+import { useAccounts } from '../../context/AccountsContext';
+import { useContacts } from '../../context/ContactsContext';
+import { getAccountId, getContactId } from '../../utils/recordIds';
+import EditableCell from '../../components/EditableCell';
+import RecordActivityTabs from '../../components/RecordActivityTabs';
+import AssociationList from '../../components/AssociationList';
+import AISummaryCard from '../../components/AISummaryCard';
+import { dealStageOptions } from '../../data/dealsData';
+
+const ownerOptions = ['Alex Rivera', 'Jane Smith', 'Sarah Jenkins', 'Kevin Malone', 'Michael Chen', 'Olivia Lee'];
+
+function formatCurrency(value) {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(
+    Number(value) || 0,
+  );
+}
+
+function formatDate(value) {
+  if (!value) return '—';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString();
+}
 
 export default function DealDetailPage() {
   const { dealId } = useParams();
-  const { deals } = useDeals();
+  const navigate = useNavigate();
+  const { deals, updateDeal } = useDeals();
+  const { accounts } = useAccounts();
+  const { contacts } = useContacts();
   const deal = deals.find((item) => item.id === dealId);
 
   if (!deal) {
@@ -20,73 +45,150 @@ export default function DealDetailPage() {
     );
   }
 
+  const save = (field) => (value) => updateDeal(deal.id, { [field]: value });
+
+  const associatedCompany = accounts.find((account) => account.company === deal.associatedCompany);
+  const associatedContacts = contacts.filter((contact) =>
+    (deal.associatedContacts || []).includes(contact.name),
+  );
+
+  const activities = [
+    {
+      id: 'created',
+      title: 'Deal Created',
+      description: `This deal was created${deal.dealOwner ? ` by ${deal.dealOwner}` : ''}.`,
+      timestamp: deal.dealCreatedDate,
+    },
+    {
+      id: 'stage',
+      title: 'Stage Updated',
+      description: `Deal is currently in the "${deal.dealStage}" stage.`,
+      timestamp: deal.lastActivityDate,
+    },
+  ];
+
   return (
     <section className="p-4 md:p-8">
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-sm text-slate-500">Deals &gt; Deal Details</p>
-          <h1 className="mt-2 text-5xl font-semibold">{deal.dealName}</h1>
-          <p className="mt-3 text-xl text-slate-500">{deal.associatedCompany}</p>
+          <button
+            type="button"
+            onClick={() => navigate('/deals')}
+            className="text-sm font-medium text-slate-500 hover:text-slate-700"
+          >
+            &larr; Deals
+          </button>
+          <h1 className="mt-2 text-4xl font-semibold text-slate-900">{deal.dealName}</h1>
+          <p className="mt-2 text-lg text-slate-500">{deal.associatedCompany}</p>
         </div>
-        <Link to="/deals" className="rounded-xl bg-slate-100 px-5 py-3 text-xl font-semibold text-slate-700">
-          Back to deals
-        </Link>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
-        <div className="rounded-3xl border border-slate-200 bg-white p-6">
-          <div className="grid gap-6 md:grid-cols-2">
-            {[
-              ['Deal Size', new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(deal.dealSize)],
-              ['Deal Stage', deal.dealStage],
-              ['Created', new Date(deal.dealCreatedDate).toLocaleDateString()],
-              ['Last Activity', new Date(deal.lastActivityDate).toLocaleDateString()],
-              ['Primary Contact', deal.primaryContact],
-              ['Next Action', deal.nextAction],
-              ['Probability', `${deal.dealProbability}%`],
-              ['Source', deal.source],
-            ].map(([label, value]) => (
-              <div key={label}>
-                <p className="text-sm uppercase tracking-[0.2em] text-slate-500">{label}</p>
-                <p className="mt-2 text-2xl font-semibold text-slate-900">{value || '-'}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-8 rounded-3xl bg-slate-50 p-5">
-            <p className="text-sm uppercase tracking-[0.2em] text-slate-500">Deal Source Owner</p>
-            <p className="mt-2 text-3xl font-semibold text-slate-900">{deal.dealSourceOwner}</p>
-            <p className="mt-1 text-sm text-slate-500">Source owner display value</p>
-          </div>
-
-          <div className="mt-6 rounded-3xl bg-slate-50 p-5">
-            <p className="text-sm uppercase tracking-[0.2em] text-slate-500">Source Owner Name</p>
-            <p className="mt-2 text-3xl font-semibold text-slate-900">{deal.dealSourceOwnerName}</p>
+      <div className="grid gap-6 lg:grid-cols-[1fr_1.4fr_1fr]">
+        {/* LEFT: editable details */}
+        <div className="space-y-6">
+          <div className="rounded-3xl border border-slate-200 bg-white p-6">
+            <p className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">Deal Details</p>
+            <div className="space-y-4">
+              <Field label="Deal Name">
+                <EditableCell value={deal.dealName} onSave={save('dealName')} />
+              </Field>
+              <Field label="Deal Value">
+                <EditableCell
+                  value={String(deal.dealSize)}
+                  onSave={(value) => updateDeal(deal.id, { dealSize: Number(value) || 0 })}
+                />
+                <p className="mt-1 text-xs text-slate-400">{formatCurrency(deal.dealSize)}</p>
+              </Field>
+              <Field label="Deal Owner">
+                <EditableCell type="owner" value={deal.dealOwner} options={ownerOptions} onSave={save('dealOwner')} />
+              </Field>
+              <Field label="Deal Stage">
+                <EditableCell type="stage" value={deal.dealStage} options={dealStageOptions} onSave={save('dealStage')} />
+              </Field>
+              <Field label="Deal Source">
+                <EditableCell value={deal.source} onSave={save('source')} />
+              </Field>
+              <Field label="Expected Close Date">
+                <EditableCell type="date" value={deal.expectedCloseDate} onSave={save('expectedCloseDate')} />
+                <p className="mt-1 text-xs text-slate-400">{formatDate(deal.expectedCloseDate)}</p>
+              </Field>
+              <Field label="Next Step">
+                <EditableCell value={deal.nextAction} onSave={save('nextAction')} />
+              </Field>
+              <Field label="Next Step Due Date">
+                <EditableCell type="date" value={deal.nextStepDueDate} onSave={save('nextStepDueDate')} />
+                <p className="mt-1 text-xs text-slate-400">{formatDate(deal.nextStepDueDate)}</p>
+              </Field>
+              {deal.dealStage === 'Closed Lost' && (
+                <Field label="Lost Reason">
+                  <EditableCell type="textarea" value={deal.lostReason} onSave={save('lostReason')} />
+                </Field>
+              )}
+              {deal.dealStage === 'Closed Won' && (
+                <Field label="Won Reason">
+                  <EditableCell type="textarea" value={deal.wonReason} onSave={save('wonReason')} />
+                </Field>
+              )}
+              <Field label="Deal Notes">
+                <EditableCell type="textarea" value={deal.remarks} onSave={save('remarks')} />
+              </Field>
+            </div>
           </div>
         </div>
 
-        <div className="space-y-6">
-          <div className="rounded-3xl border border-slate-200 bg-white p-6">
-            <p className="text-sm uppercase tracking-[0.2em] text-slate-500">Associated Company</p>
-            <p className="mt-2 text-3xl font-semibold text-slate-900">{deal.associatedCompany}</p>
-            <p className="mt-6 text-sm uppercase tracking-[0.2em] text-slate-500">Country / City</p>
-            <p className="mt-2 text-2xl font-semibold text-slate-900">{deal.country} / {deal.city}</p>
-          </div>
+        {/* MIDDLE: tabs */}
+        <div>
+          <RecordActivityTabs
+            activities={activities}
+            initialNotes={
+              deal.remarks
+                ? [{ id: 'seed-note', text: deal.remarks, author: deal.dealOwner || 'Unknown', timestamp: deal.dealCreatedDate }]
+                : []
+            }
+            initialTasks={
+              deal.nextAction
+                ? [{ id: 'seed-task', label: deal.nextAction, dueDate: deal.nextStepDueDate, done: false }]
+                : []
+            }
+          />
+        </div>
 
-          <div className="rounded-3xl border border-slate-200 bg-white p-6">
-            <p className="text-sm uppercase tracking-[0.2em] text-slate-500">Expected Close Date</p>
-            <p className="mt-2 text-2xl font-semibold text-slate-900">{new Date(deal.expectedCloseDate).toLocaleDateString()}</p>
-            <p className="mt-6 text-sm uppercase tracking-[0.2em] text-slate-500">Remarks</p>
-            <p className="mt-2 text-xl text-slate-700">{deal.remarks}</p>
-            {deal.dealStage === 'Closed Lost' && (
-              <>
-                <p className="mt-6 text-sm uppercase tracking-[0.2em] text-slate-500">Lost Reason</p>
-                <p className="mt-2 text-xl text-rose-700">{deal.lostReason}</p>
-              </>
-            )}
-          </div>
+        {/* RIGHT: associations + AI summary */}
+        <div className="space-y-6">
+          <AssociationList
+            title="Company"
+            items={
+              associatedCompany
+                ? [{ href: `/accounts/${getAccountId(associatedCompany)}`, title: associatedCompany.company, subtitle: associatedCompany.site }]
+                : []
+            }
+            emptyLabel="No company associated."
+          />
+          <AssociationList
+            title="Contacts"
+            items={associatedContacts.map((contact) => ({
+              href: `/contacts/${getContactId(contact)}`,
+              title: contact.name,
+              subtitle: contact.email,
+            }))}
+            emptyLabel="No contacts associated."
+          />
+          <AISummaryCard
+            summary={`This deal is worth ${formatCurrency(deal.dealSize)} and is currently in the "${deal.dealStage}" stage. ${
+              deal.nextAction ? `Next step: ${deal.nextAction}.` : ''
+            }`}
+          />
         </div>
       </div>
     </section>
+  );
+}
+
+function Field({ label, children }) {
+  return (
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</p>
+      <div className="mt-1">{children}</div>
+    </div>
   );
 }

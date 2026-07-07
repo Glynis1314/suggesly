@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import Modal from './Modal';
+import SlidePanel from './SlidePanel';
 
 const inputClass =
   'mt-2 w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20';
@@ -102,7 +102,7 @@ export default function AddContactModal({ open, onClose, onCreate, stageOptions 
   };
 
   return (
-    <Modal
+    <SlidePanel
       open={open}
       title="New Contact"
       onClose={onClose}
@@ -260,6 +260,6 @@ export default function AddContactModal({ open, onClose, onCreate, stageOptions 
           </label>
         </div>
       </form>
-    </Modal>
+    </SlidePanel>
   );
 }

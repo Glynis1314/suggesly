@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import Modal from './Modal';
+import SlidePanel from './SlidePanel';
 
 const inputClass =
   'mt-2 w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20';
@@ -111,7 +111,7 @@ export default function AddDealModal({
   };
 
   return (
-    <Modal
+    <SlidePanel
       open={open}
       title="New Deal"
       onClose={onClose}
@@ -271,6 +271,6 @@ export default function AddDealModal({
           </label>
         </div>
       </form>
-    </Modal>
+    </SlidePanel>
   );
 }

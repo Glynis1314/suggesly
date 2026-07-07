@@ -1,10 +1,13 @@
 import { useMemo, useState } from 'react';
-import { contactsRows, contactStageOptions } from '../../data/contactsData';
+import { Link } from 'react-router-dom';
+import { contactStageOptions } from '../../data/contactsData';
 import { accountsRows } from '../../data/accountsData';
 import StatCard from '../../components/StatCard';
 import EditableCell from '../../components/EditableCell';
 import AddContactModal from '../../components/AddContactModal';
 import BulkImportModal from '../../components/BulkImportModal';
+import { useContacts } from '../../context/ContactsContext';
+import { getContactId } from '../../utils/recordIds';
 
 const contactSampleHeaders = [
   'Contact Name',
@@ -45,7 +48,7 @@ const totalCount = 12482;
 const pageSize = 5;
 
 export default function ContactsPage() {
-  const [rows, setRows] = useState(contactsRows);
+  const { contacts: rows, createContact, importContacts, updateContact } = useContacts();
   const [showAddContact, setShowAddContact] = useState(false);
   const [showBulkImport, setShowBulkImport] = useState(false);
   const [selectedStage, setSelectedStage] = useState('All');
@@ -66,7 +69,7 @@ export default function ContactsPage() {
   );
 
   const handleSave = (email, field, value) => {
-    setRows((prev) => prev.map((r) => (r.email === email ? { ...r, [field]: value } : r)));
+    updateContact(email, { [field]: value });
   };
 
   const clearFilters = () => {
@@ -137,7 +140,7 @@ export default function ContactsPage() {
         stageOptions={contactStageOptions}
         companyOptions={accountsRows.map((row) => row.company)}
         onCreate={(newContact) => {
-          setRows((current) => [newContact, ...current]);
+          createContact(newContact);
           setShowAddContact(false);
         }}
       />
@@ -191,7 +194,7 @@ export default function ContactsPage() {
               modifiedDate: today,
             };
           });
-          setRows((current) => [...mapped, ...current]);
+          importContacts(mapped);
           setShowBulkImport(false);
         }}
       />
@@ -328,25 +331,30 @@ export default function ContactsPage() {
                 <tr key={row.email} className="border-b border-gray-100 align-top">
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-100 text-xl font-semibold text-emerald-700">{row.initials}</div>
+                      <Link
+                        to={`/contacts/${getContactId(row)}`}
+                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xl font-semibold text-emerald-700 transition hover:bg-emerald-200"
+                      >
+                        {row.initials}
+                      </Link>
                       <div className="min-w-0">
-                        <EditableCell value={row.name} onSave={(v) => handleSave(row.email, 'name', v)} />
+                        <EditableCell value={row.name} onSave={(v) => handleSave(getContactId(row), 'name', v)} />
                       </div>
                     </div>
                   </td>
                   <td className="px-5 py-3 text-sm">
                     <div className="min-w-0 truncate">
-                      <EditableCell value={row.company} onSave={(v) => handleSave(row.email, 'company', v)} />
+                      <EditableCell value={row.company} onSave={(v) => handleSave(getContactId(row), 'company', v)} />
                     </div>
                   </td>
                   <td className="px-5 py-3 text-sm text-teal-600">
                     <div className="min-w-0 truncate">
-                      <EditableCell type="email" value={row.email} onSave={(v) => handleSave(row.email, 'email', v)} />
+                      <EditableCell type="email" value={row.email} onSave={(v) => handleSave(getContactId(row), 'email', v)} />
                     </div>
                   </td>
                   <td className="px-5 py-3 text-sm">
                     <div className="min-w-0 truncate">
-                      <EditableCell value={row.phone} onSave={(v) => handleSave(row.email, 'phone', v)} />
+                      <EditableCell value={row.phone} onSave={(v) => handleSave(getContactId(row), 'phone', v)} />
                     </div>
                   </td>
                   <td className="w-[64px] px-5 py-3 text-sm">
@@ -356,17 +364,17 @@ export default function ContactsPage() {
                   </td>
                   <td className="px-5 py-3 text-sm">
                     <div className="min-w-0 truncate">
-                      <EditableCell value={row.location} onSave={(v) => handleSave(row.email, 'location', v)} />
+                      <EditableCell value={row.location} onSave={(v) => handleSave(getContactId(row), 'location', v)} />
                     </div>
                   </td>
                   <td className="px-5 py-3 text-sm">
-                    <EditableCell type="stage" value={row.stage} options={contactStageOptions} onSave={(v) => handleSave(row.email, 'stage', v)} />
+                    <EditableCell type="stage" value={row.stage} options={contactStageOptions} onSave={(v) => handleSave(getContactId(row), 'stage', v)} />
                   </td>
-                  <td className="px-5 py-3 text-sm text-slate-600"><EditableCell type="date" value={row.activity} onSave={(v) => handleSave(row.email, 'activity', v)} /></td>
-                  <td className="px-5 py-3 text-sm text-slate-600"><EditableCell type="date" value={row.created} onSave={(v) => handleSave(row.email, 'created', v)} /></td>
+                  <td className="px-5 py-3 text-sm text-slate-600"><EditableCell type="date" value={row.activity} onSave={(v) => handleSave(getContactId(row), 'activity', v)} /></td>
+                  <td className="px-5 py-3 text-sm text-slate-600"><EditableCell type="date" value={row.created} onSave={(v) => handleSave(getContactId(row), 'created', v)} /></td>
                   <td className="w-[240px] px-5 py-3 text-sm italic text-slate-700">
                     <div className="min-w-0 truncate">
-                      <EditableCell type="textarea" value={row.notes} onSave={(v) => handleSave(row.email, 'notes', v)} />
+                      <EditableCell type="textarea" value={row.notes} onSave={(v) => handleSave(getContactId(row), 'notes', v)} />
                     </div>
                   </td>
                 </tr>

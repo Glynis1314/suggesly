@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import FilterPill from '../../components/FilterPill';
 import EditableCell from '../../components/EditableCell';
 import OwnerAvatar from '../../components/OwnerAvatar';
 import StageBadge from '../../components/StageBadge';
 import AddCompanyModal from '../../components/AddCompanyModal';
 import BulkImportModal from '../../components/BulkImportModal';
+import { useAccounts } from '../../context/AccountsContext';
+import { getAccountId } from '../../utils/recordIds';
 import {
-  accountsRows,
   accountStageOptions,
   accountPriorityOptions,
   accountSourceOptions,
@@ -89,7 +91,7 @@ function parseDate(value) {
 }
 
 export default function AccountsPage() {
-  const [rows, setRows] = useState(accountsRows);
+  const { accounts: rows, createAccount, importAccounts, updateAccount } = useAccounts();
   const [showAddCompany, setShowAddCompany] = useState(false);
   const [showBulkImport, setShowBulkImport] = useState(false);
   const [selectedView, setSelectedView] = useState('All Companies');
@@ -251,9 +253,7 @@ export default function AccountsPage() {
   };
 
   const handleSave = (id, field, value) => {
-    setRows((current) =>
-      current.map((row) => (row.companyId === id ? { ...row, [field]: value } : row)),
-    );
+    updateAccount(id, { [field]: value });
   };
 
   const toggleRow = (id) => {
@@ -266,7 +266,7 @@ export default function AccountsPage() {
     if (selectedRows.length === filteredRows.length) {
       setSelectedRows([]);
     } else {
-      setSelectedRows(filteredRows.map((row) => row.companyId));
+      setSelectedRows(filteredRows.map((row) => getAccountId(row)));
     }
   };
 
@@ -313,7 +313,7 @@ export default function AccountsPage() {
         sourceOptions={accountSourceOptions}
         employeeSizeOptions={accountEmployeeSizeOptions}
         onCreate={(newCompany) => {
-          setRows((current) => [newCompany, ...current]);
+          createAccount(newCompany);
           setShowAddCompany(false);
         }}
       />
@@ -346,7 +346,7 @@ export default function AccountsPage() {
             color: 'bg-slate-100 text-slate-700',
             init: (row['Company Name'] || '?').charAt(0).toUpperCase(),
           }));
-          setRows((current) => [...mapped, ...current]);
+          importAccounts(mapped);
           setShowBulkImport(false);
         }}
       />
@@ -556,13 +556,13 @@ export default function AccountsPage() {
             </thead>
             <tbody>
               {filteredRows.map((row) => (
-                <tr key={row.companyId} className="border-b border-slate-200 bg-white hover:bg-slate-50">
+                <tr key={getAccountId(row)} className="border-b border-slate-200 bg-white hover:bg-slate-50">
                   <td className="px-5 py-4 align-middle">
                     <div className="flex h-full items-center">
                       <input
                         type="checkbox"
-                        checked={selectedRows.includes(row.companyId)}
-                        onChange={() => toggleRow(row.companyId)}
+                        checked={selectedRows.includes(getAccountId(row))}
+                        onChange={() => toggleRow(getAccountId(row))}
                         className="h-5 w-5 rounded border-slate-300"
                       />
                     </div>
@@ -573,7 +573,12 @@ export default function AccountsPage() {
                         {row.init}
                       </div>
                       <div className="min-w-0">
-                        <div className="text-sm font-semibold text-slate-900">{row.company}</div>
+                        <Link
+                          to={`/accounts/${getAccountId(row)}`}
+                          className="text-sm font-semibold text-slate-900 hover:text-emerald-700 hover:underline"
+                        >
+                          {row.company}
+                        </Link>
                         <a href={`https://${row.site}`} target="_blank" rel="noreferrer" className="mt-1 block truncate text-sm text-slate-500 hover:text-slate-700">
                           {row.site}
                         </a>
@@ -586,7 +591,7 @@ export default function AccountsPage() {
                         type="owner"
                         value={row.owner}
                         options={ownerOptions}
-                        onSave={(value) => handleSave(row.companyId, 'owner', value)}
+                        onSave={(value) => handleSave(getAccountId(row), 'owner', value)}
                       />
                     </div>
                   </td>
@@ -596,7 +601,7 @@ export default function AccountsPage() {
                         type="multiselect"
                         value={row.source}
                         options={accountSourceOptions}
-                        onSave={(value) => handleSave(row.companyId, 'source', value)}
+                        onSave={(value) => handleSave(getAccountId(row), 'source', value)}
                       />
                     </div>
                   </td>
@@ -606,7 +611,7 @@ export default function AccountsPage() {
                         type="select"
                         value={row.priority}
                         options={accountPriorityOptions}
-                        onSave={(value) => handleSave(row.companyId, 'priority', value)}
+                        onSave={(value) => handleSave(getAccountId(row), 'priority', value)}
                       />
                     </div>
                   </td>
@@ -616,48 +621,48 @@ export default function AccountsPage() {
                         type="stage"
                         value={row.stage}
                         options={accountStageOptions}
-                        onSave={(value) => handleSave(row.companyId, 'stage', value)}
+                        onSave={(value) => handleSave(getAccountId(row), 'stage', value)}
                       />
                     </div>
                   </td>
                   <td className="px-5 py-4 align-middle text-sm text-slate-700">
                     <div className="flex h-full items-center">
-                      <EditableCell type="textarea" value={row.notes} onSave={(value) => handleSave(row.companyId, 'notes', value)} />
+                      <EditableCell type="textarea" value={row.notes} onSave={(value) => handleSave(getAccountId(row), 'notes', value)} />
                     </div>
                   </td>
                   <td className="px-5 py-4 align-middle text-sm text-slate-700">
                     <div className="flex h-full items-center">
-                      <EditableCell type="text" value={row.nextSteps} onSave={(value) => handleSave(row.companyId, 'nextSteps', value)} />
+                      <EditableCell type="text" value={row.nextSteps} onSave={(value) => handleSave(getAccountId(row), 'nextSteps', value)} />
                     </div>
                   </td>
                   <td className="px-5 py-4 align-middle text-sm text-slate-600">
                     <div className="flex h-full items-center">
-                      <EditableCell type="date" value={row.nextActionDate} onSave={(value) => handleSave(row.companyId, 'nextActionDate', value)} />
+                      <EditableCell type="date" value={row.nextActionDate} onSave={(value) => handleSave(getAccountId(row), 'nextActionDate', value)} />
                     </div>
                   </td>
                   <td className="px-5 py-4 align-middle text-sm text-slate-600">
                     <div className="flex h-full items-center">
-                      <EditableCell type="date" value={row.lastActivityDate} onSave={(value) => handleSave(row.companyId, 'lastActivityDate', value)} />
+                      <EditableCell type="date" value={row.lastActivityDate} onSave={(value) => handleSave(getAccountId(row), 'lastActivityDate', value)} />
                     </div>
                   </td>
                   <td className="px-5 py-4 align-middle text-sm text-slate-600">
                     <div className="flex h-full items-center">
-                      <EditableCell type="date" value={row.createdDate} onSave={(value) => handleSave(row.companyId, 'createdDate', value)} />
+                      <EditableCell type="date" value={row.createdDate} onSave={(value) => handleSave(getAccountId(row), 'createdDate', value)} />
                     </div>
                   </td>
                   <td className="px-5 py-4 align-middle text-sm text-slate-900">
                     <div className="flex h-full items-center">
-                      <EditableCell type="text" value={row.country} onSave={(value) => handleSave(row.companyId, 'country', value)} />
+                      <EditableCell type="text" value={row.country} onSave={(value) => handleSave(getAccountId(row), 'country', value)} />
                     </div>
                   </td>
                   <td className="px-5 py-4 align-middle text-sm text-slate-900">
                     <div className="flex h-full items-center">
-                      <EditableCell type="text" value={row.custom} onSave={(value) => handleSave(row.companyId, 'custom', value)} />
+                      <EditableCell type="text" value={row.custom} onSave={(value) => handleSave(getAccountId(row), 'custom', value)} />
                     </div>
                   </td>
                   <td className="px-5 py-4 align-middle text-sm text-slate-900">
                     <div className="flex h-full items-center">
-                      <EditableCell type="text" value={row.city} onSave={(value) => handleSave(row.companyId, 'city', value)} />
+                      <EditableCell type="text" value={row.city} onSave={(value) => handleSave(getAccountId(row), 'city', value)} />
                     </div>
                   </td>
                   <td className="px-5 py-4 align-middle">
@@ -666,13 +671,13 @@ export default function AccountsPage() {
                         type="select"
                         value={row.employeeSize}
                         options={accountEmployeeSizeOptions}
-                        onSave={(value) => handleSave(row.companyId, 'employeeSize', value)}
+                        onSave={(value) => handleSave(getAccountId(row), 'employeeSize', value)}
                       />
                     </div>
                   </td>
                   <td className="px-5 py-4 align-middle">
                     <div className="flex h-full items-center">
-                      <EditableCell type="linkedin" value={row.linkedin} onSave={(value) => handleSave(row.companyId, 'linkedin', value)} />
+                      <EditableCell type="linkedin" value={row.linkedin} onSave={(value) => handleSave(getAccountId(row), 'linkedin', value)} />
                     </div>
                   </td>
                   <td className="px-5 py-4 align-middle text-slate-400">
