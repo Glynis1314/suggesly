@@ -8,6 +8,7 @@ import AccountsPage from './pages/accounts/AccountsPage';
 import CompanyDetailPage from './pages/accounts/CompanyDetailPage';
 import ContactsPage from './pages/contacts/ContactsPage';
 import ContactDetailPage from './pages/contacts/ContactDetailPage';
+import ProfilePage from './pages/profile/ProfilePage';
 import LoginPage from './pages/auth/LoginPage';
 import SignupPage from './pages/auth/SignupPage';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
@@ -59,6 +60,7 @@ function App() {
                 <Route path="/accounts/:companyId" element={<CompanyDetailPage />} />
                 <Route path="/contacts" element={<ContactsPage />} />
                 <Route path="/contacts/:contactId" element={<ContactDetailPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
                 <Route path="/settings" element={<div className="p-8 text-slate-700">Settings page coming soon.</div>} />
               </Routes>
             </AppShell>

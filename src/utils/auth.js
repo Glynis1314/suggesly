@@ -17,6 +17,14 @@ export function saveSession(user) {
   window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
 }
 
+export function updateSession(updates) {
+  if (typeof window === 'undefined') return null;
+  const current = readStoredUser() || {};
+  const next = { ...current, ...updates };
+  window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(next));
+  return next;
+}
+
 export function clearSession() {
   if (typeof window === 'undefined') return;
   window.localStorage.removeItem(AUTH_STORAGE_KEY);

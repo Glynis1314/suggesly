@@ -1,5 +1,5 @@
 import React from 'react';
-import { HelpCircle, LogOut, Mail, Settings, Bell } from 'lucide-react';
+import { HelpCircle, LogOut, Mail, Settings, Bell, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Avatar from '../components/Avatar';
 import { clearSession, readStoredUser } from '../utils/auth';
@@ -107,16 +107,35 @@ export default function Header() {
 
           {open ? (
             <div className="absolute right-0 mt-2 w-64 rounded-lg border border-slate-200 bg-white p-2 shadow-lg">
-              <div className="flex items-center gap-3 px-3 py-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  navigate('/profile');
+                }}
+                className="flex w-full items-center gap-3 rounded-md px-3 py-3 text-left transition hover:bg-slate-50"
+              >
                 <Avatar src="https://api.dicebear.com/9.x/personas/svg?seed=Alex%20Rivera" alt="Profile" size="lg" />
                 <div>
                   <p className="font-semibold text-slate-900">{profile?.name || 'Alex Rivera'}</p>
                   <p className="text-xs text-slate-500">{profile?.email || 'alex@example.com'}</p>
                   <p className="text-xs text-slate-400">{profile?.role || 'Account Executive'}</p>
                 </div>
-              </div>
+              </button>
 
               <div className="my-2 border-t border-slate-100" />
+
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-50"
+                onClick={() => {
+                  setOpen(false);
+                  navigate('/profile');
+                }}
+              >
+                <User size={16} />
+                <span>View Profile</span>
+              </button>
 
               <button
                 type="button"
