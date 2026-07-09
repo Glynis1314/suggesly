@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDeals } from '../../context/DealsContext';
+import { useTableColumns } from '../../utils/useTableColumns';
 import StageBadge from '../../components/StageBadge';
 import OwnerAvatar from '../../components/OwnerAvatar';
 import CurrencyCell from '../../components/CurrencyCell';
@@ -91,6 +92,45 @@ export default function DealsPage() {
   const [advancedFilters, setAdvancedFilters] = useState({ country: false, city: false, dealName: false, dealSize: false });
   const dropdownRef = useRef(null);
 
+  const [visibleCount, setVisibleCount] = useState(30);
+
+  const {
+    columns,
+    dragOverColIndex,
+    handleResizeStart,
+    handleDragStart,
+    handleDragOver,
+    handleDrop,
+  } = useTableColumns([
+    { id: 'dealName', label: 'Deal Name', width: 300 },
+    { id: 'dealSize', label: 'Deal Size', width: 130, sortable: true, sortKey: 'dealSize', align: 'right' },
+    { id: 'dealOwner', label: 'Owner', width: 180 },
+    { id: 'source', label: 'Source', width: 140 },
+    { id: 'dealStage', label: 'Stage', width: 160 },
+    { id: 'dealCreatedDate', label: 'Create Date', width: 160, sortable: true, sortKey: 'dealCreatedDate' },
+    { id: 'lastActivityDate', label: 'Last Activity', width: 240, sortable: true, sortKey: 'lastActivityDate' },
+    { id: 'upcomingTask', label: 'Upcoming Task', width: 200 },
+  ]);
+
+  const totalTableWidth = useMemo(() => {
+    return columns.reduce((acc, col) => acc + col.width, 0);
+  }, [columns]);
+
+  useEffect(() => {
+    setVisibleCount(30);
+  }, [
+    globalSearch,
+    selectedView,
+    selectedStage,
+    selectedOwner,
+    selectedCountries,
+    selectedCities,
+    dealNameFilter,
+    dealSizeRange,
+    sortKey,
+    sortDirection,
+  ]);
+
   const ownerOptions = useMemo(
     () => ['All Owners', ...Array.from(new Set(deals.map((deal) => deal.dealOwner))).sort()],
     [deals],
@@ -173,8 +213,8 @@ export default function DealsPage() {
         selectedView === 'All Deals'
           ? true
           : selectedView === 'My Deals'
-          ? deal.dealOwner === 'Jane Smith'
-          : new Date(deal.expectedCloseDate) <= new Date(Date.now() + 30 * 86400000);
+            ? deal.dealOwner === 'Jane Smith'
+            : new Date(deal.expectedCloseDate) <= new Date(Date.now() + 30 * 86400000);
       const stageMatch = selectedStage === 'All' || deal.dealStage === selectedStage;
       const ownerMatch = selectedOwner === 'All Owners' || deal.dealOwner === selectedOwner;
       const countryMatch = selectedCountries.length === 0 || selectedCountries.includes(deal.country);
@@ -277,6 +317,73 @@ export default function DealsPage() {
     return options.filter((option) =>
       option.toLowerCase().includes(dropdownSearch.trim().toLowerCase()),
     );
+  };
+
+  const renderCellContent = (deal, colId) => {
+    switch (colId) {
+      case 'dealName':
+        return (
+          <div className="flex items-center gap-3">
+            <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-semibold ${getAvatarClasses(deal.id)}`}>
+              {getDealDisplayName(deal.dealName).charAt(0).toUpperCase()}
+            </div>
+            <div className="flex min-w-0 flex-col">
+              <button
+                type="button"
+                onClick={() => navigate(`/deals/${deal.id}`)}
+                className={`${primaryTextClasses} text-left underline-offset-4 transition hover:underline truncate`}
+              >
+                {getDealDisplayName(deal.dealName)}
+              </button>
+              <p className={`${secondaryTextClasses} mt-1 block truncate`}>{deal.associatedCompany}</p>
+            </div>
+          </div>
+        );
+      case 'dealSize':
+        return (
+          <div className="flex items-center justify-end w-full">
+            <CurrencyCell value={deal.dealSize} />
+          </div>
+        );
+      case 'dealOwner':
+        return (
+          <div className="flex items-center">
+            <OwnerAvatar owner={deal.dealOwner} />
+          </div>
+        );
+      case 'source':
+        return (
+          <div className="flex items-center">
+            <span className="text-sm text-gray-900">{deal.source || deal.dealSourceOwnerName || '—'}</span>
+          </div>
+        );
+      case 'dealStage':
+        return (
+          <div className="flex items-center">
+            <StageBadge stage={deal.dealStage} />
+          </div>
+        );
+      case 'dealCreatedDate':
+        return (
+          <div className="flex items-center">
+            <DateCell date={deal.dealCreatedDate} />
+          </div>
+        );
+      case 'lastActivityDate':
+        return (
+          <div className="flex items-center">
+            <DateCell date={deal.lastActivityDate} />
+          </div>
+        );
+      case 'upcomingTask':
+        return (
+          <div className="flex items-center">
+            <TaskListCell tasks={deal.tasks} />
+          </div>
+        );
+      default:
+        return null;
+    }
   };
 
   return (
@@ -722,117 +829,94 @@ export default function DealsPage() {
         </div>
       )}
 
-      <div className="overflow-hidden rounded-2xl border border-slate-300 bg-white">
-        <div className="max-h-[500px] overflow-y-auto overflow-x-auto">
-          <table className="min-w-[1200px] w-full table-fixed">
-            <colgroup>
-              <col className="w-[300px]" />
-              <col className="w-[130px]" />
-              <col className="w-[180px]" />
-              <col className="w-[140px]" />
-              <col className="w-[160px]" />
-              <col className="w-[160px]" />
-              <col className="w-[240px]" />
-            </colgroup>
+      <div className="overflow-hidden rounded-2xl border border-slate-300 bg-white w-full">
+        <div
+          className="max-h-[calc(100vh-26rem)] overflow-y-auto overflow-x-hidden w-full"
+          onScroll={(e) => {
+            const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+            if (scrollHeight - scrollTop - clientHeight < 150) {
+              setVisibleCount((prev) => Math.min(prev + 30, filteredDeals.length));
+            }
+          }}
+        >
+          <table className="w-full table-fixed">
             <thead className="sticky top-0 z-10 bg-gray-50">
               <tr className="border-b border-gray-100">
-                <th className={`${headerCellClasses} text-left`}>
-                  <div className="flex items-center">Deal Name</div>
-                </th>
-                <th className={`${headerCellClasses} cursor-pointer text-right`} onClick={() => handleSort('dealSize')}>
-                  <div className="flex items-center justify-end gap-2">
-                    Deal Size
-                    <span>{sortKey === 'dealSize' ? (sortDirection === 'asc' ? '↑' : '↓') : ''}</span>
-                  </div>
-                </th>
-                <th className={`${headerCellClasses} text-left`}>
-                  <div className="flex items-center">Owner</div>
-                </th>
-                <th className={`${headerCellClasses} text-left`}>
-                  <div className="flex items-center">Source</div>
-                </th>
-                <th className={`${headerCellClasses} text-left`}>
-                  <div className="flex items-center">Stage</div>
-                </th>
-                <th className={`${headerCellClasses} cursor-pointer text-left`} onClick={() => handleSort('dealCreatedDate')}>
-                  <div className="flex items-center gap-2">
-                    Create Date
-                    <span>{sortKey === 'dealCreatedDate' ? (sortDirection === 'asc' ? '↑' : '↓') : ''}</span>
-                  </div>
-                </th>
-                <th className={`${headerCellClasses} cursor-pointer text-left`} onClick={() => handleSort('lastActivityDate')}>
-                  <div className="flex items-center gap-2">
-                    Last Activity
-                    <span>{sortKey === 'lastActivityDate' ? (sortDirection === 'asc' ? '↑' : '↓') : ''}</span>
-                  </div>
-                </th>
-                <th className={`${headerCellClasses} text-left`}>
-                  <div className="flex items-center">Upcoming Task</div>
-                </th>
+                {columns.map((col, index) => (
+                  <th
+                    key={col.id}
+                    style={{ width: `${col.width}px` }}
+                    className={`${headerCellClasses} relative select-none group border-r border-slate-100 last:border-0 ${
+                      col.align === 'right' ? 'text-right' : 'text-left'
+                    } ${
+                      col.sortable ? 'cursor-pointer' : ''
+                    } ${
+                      dragOverColIndex === index ? 'bg-slate-100 border-l-2 border-l-emerald-500' : ''
+                    }`}
+                    draggable
+                    onDragStart={(e) => handleDragStart(index, e)}
+                    onDragOver={(e) => handleDragOver(index, e)}
+                    onDrop={(e) => handleDrop(index, e)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span
+                        onClick={() => col.sortable && handleSort(col.sortKey)}
+                        className={`truncate cursor-grab active:cursor-grabbing font-semibold flex-grow flex items-center gap-1 ${col.align === 'right' ? 'justify-end' : 'justify-start'
+                          }`}
+                      >
+                        {col.label}
+                        {col.sortable && sortKey === col.sortKey && (
+                          <span className="text-[10px]">{sortDirection === 'asc' ? '▲' : '▼'}</span>
+                        )}
+                      </span>
+                      <div
+                        onMouseDown={(e) => handleResizeStart(index, e)}
+                        className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize opacity-0 group-hover:opacity-100 hover:opacity-100 bg-slate-300 active:bg-emerald-500 transition-opacity"
+                        style={{ zIndex: 2 }}
+                      />
+                    </div>
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {filteredDeals.map((deal) => (
-                <tr key={deal.id} className="border-b border-gray-100">
-                  <td className={`${cellBaseClasses} text-left`}>
-                    <div className="flex items-center gap-3">
-                      <div className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm font-semibold ${getAvatarClasses(deal.id)}`}>
-                        {getDealDisplayName(deal.dealName).charAt(0).toUpperCase()}
+              {filteredDeals.slice(0, visibleCount).map((deal) => (
+                <tr key={deal.id} className="border-b border-gray-100 hover:bg-slate-50">
+                  {columns.map((col) => (
+                    <td
+                      key={col.id}
+                      style={{ width: `${col.width}px` }}
+                      className={`${cellBaseClasses} ${col.align === 'right' ? 'text-right' : 'text-left'} align-middle overflow-hidden`}
+                    >
+                      <div className="flex h-full items-center min-w-0">
+                        {renderCellContent(deal, col.id)}
                       </div>
-                      <div className="flex min-w-0 flex-col">
-                        <button
-                          type="button"
-                          onClick={() => navigate(`/deals/${deal.id}`)}
-                          className={`${primaryTextClasses} text-left underline-offset-4 transition hover:underline`}
-                        >
-                          {getDealDisplayName(deal.dealName)}
-                        </button>
-                        <p className={`${secondaryTextClasses} mt-1`}>{deal.associatedCompany}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className={`${cellBaseClasses} text-right`}>
-                    <div className="flex items-center justify-end">
-                      <CurrencyCell value={deal.dealSize} />
-                    </div>
-                  </td>
-                  <td className={`${cellBaseClasses} text-left`}>
-                    <div className="flex items-center">
-                      <OwnerAvatar owner={deal.dealOwner} />
-                    </div>
-                  </td>
-                  <td className={`${cellBaseClasses} text-left`}>
-                    <div className="flex items-center">
-                      <span className="text-sm text-gray-900">{deal.source || deal.dealSourceOwnerName || '—'}</span>
-                    </div>
-                  </td>
-                  <td className={`${cellBaseClasses} text-left`}>
-                    <div className="flex items-center">
-                      <StageBadge stage={deal.dealStage} />
-                    </div>
-                  </td>
-                  <td className={`${cellBaseClasses} text-left`}>
-                    <div className="flex items-center">
-                      <DateCell date={deal.dealCreatedDate} />
-                    </div>
-                  </td>
-                  <td className={`${cellBaseClasses} text-left`}>
-                    <div className="flex items-center">
-                      <DateCell date={deal.lastActivityDate} />
-                    </div>
-                  </td>
-                  <td className={`${cellBaseClasses} text-left`}>
-                    <div className="flex items-center">
-                      <TaskListCell tasks={deal.tasks} />
-                    </div>
-                  </td>
+                    </td>
+                  ))}
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        <div className="border-t border-slate-200 px-5 py-4 text-sm text-slate-500">
-          Showing all {filteredDeals.length} deals
+        <div className="border-t border-slate-200 px-5 py-4 text-sm text-slate-500 flex items-center justify-between">
+          <div>
+            Showing {Math.min(filteredDeals.length, visibleCount)} of {filteredDeals.length} deals
+            {filteredDeals.length > visibleCount && (
+              <span className="ml-2 text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+                Scroll down to load more
+              </span>
+            )}
+          </div>
+          <div>
+            {filteredDeals.length > visibleCount && (
+              <button
+                onClick={() => setVisibleCount((prev) => Math.min(prev + 50, filteredDeals.length))}
+                className="rounded-full bg-slate-100 hover:bg-slate-200 px-4 py-1 text-slate-700 font-medium text-xs transition"
+              >
+                Load More
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </section>

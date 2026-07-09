@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { contactStageOptions } from '../../data/contactsData';
 import { accountsRows } from '../../data/accountsData';
@@ -8,6 +8,7 @@ import AddContactModal from '../../components/AddContactModal';
 import BulkImportModal from '../../components/BulkImportModal';
 import { useContacts } from '../../context/ContactsContext';
 import { getContactId } from '../../utils/recordIds';
+import { useTableColumns } from '../../utils/useTableColumns';
 
 const contactSampleHeaders = [
   'Contact Name',
@@ -58,6 +59,32 @@ export default function ContactsPage() {
   const [sortKey, setSortKey] = useState(null);
   const [sortDirection, setSortDirection] = useState('asc');
 
+  const [visibleCount, setVisibleCount] = useState(30);
+
+  const {
+    columns,
+    dragOverColIndex,
+    handleResizeStart,
+    handleDragStart,
+    handleDragOver,
+    handleDrop,
+  } = useTableColumns([
+    { id: 'name', label: 'Contact Name', width: 220 },
+    { id: 'company', label: 'Company', width: 140, sortable: true, sortKey: 'company' },
+    { id: 'email', label: 'Email', width: 180, sortable: true, sortKey: 'email' },
+    { id: 'phone', label: 'Phone Number', width: 140 },
+    { id: 'linkedin', label: 'LinkedIn', width: 80 },
+    { id: 'location', label: 'Location', width: 140 },
+    { id: 'stage', label: 'Stage', width: 120 },
+    { id: 'activity', label: 'Last Activity', width: 110, sortable: true, sortKey: 'activity' },
+    { id: 'created', label: 'Created Date', width: 110, sortable: true, sortKey: 'created' },
+    { id: 'notes', label: 'Notes', width: 240 },
+  ]);
+
+  useEffect(() => {
+    setVisibleCount(30);
+  }, [selectedStage, selectedOwner, selectedCountry, sortKey, sortDirection]);
+
   const ownerOptions = useMemo(
     () => Array.from(new Set(['Me', ...rows.map((row) => row.owner)])),
     [rows],
@@ -77,6 +104,79 @@ export default function ContactsPage() {
     setSelectedOwner('Me');
     setSelectedCountry('Any');
     setOpenDropdown(null);
+  };
+
+  const renderCellContent = (row, colId) => {
+    switch (colId) {
+      case 'name':
+        return (
+          <div className="flex items-center gap-3">
+            <Link
+              to={`/contacts/${getContactId(row)}`}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xl font-semibold text-emerald-700 transition hover:bg-emerald-200"
+            >
+              {row.initials}
+            </Link>
+            <div className="min-w-0">
+              <EditableCell value={row.name} onSave={(v) => handleSave(getContactId(row), 'name', v)} />
+            </div>
+          </div>
+        );
+      case 'company':
+        return (
+          <div className="min-w-0 truncate">
+            <EditableCell value={row.company} onSave={(v) => handleSave(getContactId(row), 'company', v)} />
+          </div>
+        );
+      case 'email':
+        return (
+          <div className="min-w-0 truncate text-teal-600">
+            <EditableCell type="email" value={row.email} onSave={(v) => handleSave(getContactId(row), 'email', v)} />
+          </div>
+        );
+      case 'phone':
+        return (
+          <div className="min-w-0 truncate">
+            <EditableCell value={row.phone} onSave={(v) => handleSave(getContactId(row), 'phone', v)} />
+          </div>
+        );
+      case 'linkedin':
+        return (
+          <a href={`https://www.linkedin.com/in/${row.name.replace(/\s+/g, '-').toLowerCase()}`} target="_blank" rel="noreferrer" className="text-teal-600 hover:text-teal-700">
+            <LinkIcon className="h-5 w-5" />
+          </a>
+        );
+      case 'location':
+        return (
+          <div className="min-w-0 truncate">
+            <EditableCell value={row.location} onSave={(v) => handleSave(getContactId(row), 'location', v)} />
+          </div>
+        );
+      case 'stage':
+        return (
+          <EditableCell type="stage" value={row.stage} options={contactStageOptions} onSave={(v) => handleSave(getContactId(row), 'stage', v)} />
+        );
+      case 'activity':
+        return (
+          <div className="text-slate-600">
+            <EditableCell type="date" value={row.activity} onSave={(v) => handleSave(getContactId(row), 'activity', v)} />
+          </div>
+        );
+      case 'created':
+        return (
+          <div className="text-slate-600">
+            <EditableCell type="date" value={row.created} onSave={(v) => handleSave(getContactId(row), 'created', v)} />
+          </div>
+        );
+      case 'notes':
+        return (
+          <div className="min-w-0 truncate italic text-slate-700">
+            <EditableCell type="textarea" value={row.notes} onSave={(v) => handleSave(getContactId(row), 'notes', v)} />
+          </div>
+        );
+      default:
+        return null;
+    }
   };
 
   const sortedAndFiltered = useMemo(() => {
@@ -309,74 +409,61 @@ export default function ContactsPage() {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-slate-300 bg-white">
-        <div className="max-h-[calc(100vh-26rem)] overflow-y-auto overflow-x-auto">
+      <div className="overflow-hidden rounded-2xl border border-slate-300 bg-white w-full">
+        <div
+          className="max-h-[calc(100vh-26rem)] overflow-y-auto overflow-x-hidden w-full"
+          onScroll={(e) => {
+            const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+            if (scrollHeight - scrollTop - clientHeight < 150) {
+              setVisibleCount((prev) => Math.min(prev + 30, sortedAndFiltered.length));
+            }
+          }}
+        >
           <table className="w-full table-fixed">
             <thead className="sticky top-0 z-10 bg-white">
               <tr className="border-b border-gray-100">
-                <th className="w-[220px] px-5 py-4 text-xs font-medium uppercase tracking-wide text-gray-500 text-left">Contact Name</th>
-                <th onClick={() => handleSort('company')} className="w-[140px] px-5 py-4 text-xs font-medium uppercase tracking-wide text-gray-500 text-left cursor-pointer">Company</th>
-                <th onClick={() => handleSort('email')} className="w-[180px] px-5 py-4 text-xs font-medium uppercase tracking-wide text-gray-500 text-left cursor-pointer">Email</th>
-                <th className="w-[140px] px-5 py-4 text-xs font-medium uppercase tracking-wide text-gray-500 text-left">Phone Number</th>
-                <th className="w-[64px] px-5 py-4 text-xs font-medium uppercase tracking-wide text-gray-500 text-left">LinkedIn</th>
-                <th className="w-[140px] px-5 py-4 text-xs font-medium uppercase tracking-wide text-gray-500 text-left">Location</th>
-                <th className="w-[120px] px-5 py-4 text-xs font-medium uppercase tracking-wide text-gray-500 text-left">Stage</th>
-                <th onClick={() => handleSort('activity')} className="w-[100px] px-5 py-4 text-xs font-medium uppercase tracking-wide text-gray-500 text-left cursor-pointer">Last Activity</th>
-                <th onClick={() => handleSort('created')} className="w-[100px] px-5 py-4 text-xs font-medium uppercase tracking-wide text-gray-500 text-left cursor-pointer">Created Date</th>
-                <th className="w-[240px] px-5 py-4 text-xs font-medium uppercase tracking-wide text-gray-500 text-left">Notes</th>
+                {columns.map((col, index) => (
+                  <th
+                    key={col.id}
+                    style={{ width: `${col.width}px` }}
+                    className={`relative px-5 py-4 select-none group border-r border-slate-100 last:border-0 text-left text-xs font-medium uppercase tracking-wide text-gray-500 ${col.sortable ? 'cursor-pointer' : ''
+                      } ${dragOverColIndex === index ? 'bg-slate-100 border-l-2 border-l-emerald-500' : ''
+                      }`}
+                    draggable
+                    onDragStart={(e) => handleDragStart(index, e)}
+                    onDragOver={(e) => handleDragOver(index, e)}
+                    onDrop={(e) => handleDrop(index, e)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span
+                        onClick={() => col.sortable && handleSort(col.sortKey)}
+                        className="truncate cursor-grab active:cursor-grabbing font-semibold flex-grow flex items-center gap-1"
+                      >
+                        {col.label}
+                        {col.sortable && sortKey === col.sortKey && (
+                          <span className="text-[10px]">{sortDirection === 'asc' ? '▲' : '▼'}</span>
+                        )}
+                      </span>
+                      <div
+                        onMouseDown={(e) => handleResizeStart(index, e)}
+                        className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize opacity-0 group-hover:opacity-100 hover:opacity-100 bg-slate-300 active:bg-emerald-500 transition-opacity"
+                        style={{ zIndex: 2 }}
+                      />
+                    </div>
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {sortedAndFiltered.map((row) => (
-                <tr key={row.email} className="border-b border-gray-100 align-top">
-                  <td className="px-5 py-3">
-                    <div className="flex items-center gap-3">
-                      <Link
-                        to={`/contacts/${getContactId(row)}`}
-                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xl font-semibold text-emerald-700 transition hover:bg-emerald-200"
-                      >
-                        {row.initials}
-                      </Link>
-                      <div className="min-w-0">
-                        <EditableCell value={row.name} onSave={(v) => handleSave(getContactId(row), 'name', v)} />
+              {sortedAndFiltered.slice(0, visibleCount).map((row) => (
+                <tr key={row.email} className="border-b border-gray-100 align-top hover:bg-slate-50">
+                  {columns.map((col) => (
+                    <td key={col.id} style={{ width: `${col.width}px` }} className="px-5 py-3 align-middle overflow-hidden">
+                      <div className="flex h-full items-center min-w-0">
+                        {renderCellContent(row, col.id)}
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-5 py-3 text-sm">
-                    <div className="min-w-0 truncate">
-                      <EditableCell value={row.company} onSave={(v) => handleSave(getContactId(row), 'company', v)} />
-                    </div>
-                  </td>
-                  <td className="px-5 py-3 text-sm text-teal-600">
-                    <div className="min-w-0 truncate">
-                      <EditableCell type="email" value={row.email} onSave={(v) => handleSave(getContactId(row), 'email', v)} />
-                    </div>
-                  </td>
-                  <td className="px-5 py-3 text-sm">
-                    <div className="min-w-0 truncate">
-                      <EditableCell value={row.phone} onSave={(v) => handleSave(getContactId(row), 'phone', v)} />
-                    </div>
-                  </td>
-                  <td className="w-[64px] px-5 py-3 text-sm">
-                    <a href={`https://www.linkedin.com/in/${row.name.replace(/\s+/g, '-').toLowerCase()}`} target="_blank" rel="noreferrer" className="text-teal-600 hover:text-teal-700">
-                      <LinkIcon className="h-5 w-5" />
-                    </a>
-                  </td>
-                  <td className="px-5 py-3 text-sm">
-                    <div className="min-w-0 truncate">
-                      <EditableCell value={row.location} onSave={(v) => handleSave(getContactId(row), 'location', v)} />
-                    </div>
-                  </td>
-                  <td className="px-5 py-3 text-sm">
-                    <EditableCell type="stage" value={row.stage} options={contactStageOptions} onSave={(v) => handleSave(getContactId(row), 'stage', v)} />
-                  </td>
-                  <td className="px-5 py-3 text-sm text-slate-600"><EditableCell type="date" value={row.activity} onSave={(v) => handleSave(getContactId(row), 'activity', v)} /></td>
-                  <td className="px-5 py-3 text-sm text-slate-600"><EditableCell type="date" value={row.created} onSave={(v) => handleSave(getContactId(row), 'created', v)} /></td>
-                  <td className="w-[240px] px-5 py-3 text-sm italic text-slate-700">
-                    <div className="min-w-0 truncate">
-                      <EditableCell type="textarea" value={row.notes} onSave={(v) => handleSave(getContactId(row), 'notes', v)} />
-                    </div>
-                  </td>
+                    </td>
+                  ))}
                 </tr>
               ))}
             </tbody>
@@ -384,15 +471,23 @@ export default function ContactsPage() {
         </div>
       </div>
       <div className="border-t border-slate-200 px-5 py-3 text-sm text-slate-500 flex items-center justify-between">
-        <div>Showing 1 to {Math.min(sortedAndFiltered.length, pageSize)} of {totalCount} results</div>
+        <div>
+          Showing {Math.min(sortedAndFiltered.length, visibleCount)} of {sortedAndFiltered.length} results
+          {sortedAndFiltered.length > visibleCount && (
+            <span className="ml-2 text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+              Scroll down to load more
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-2">
-          <button className="rounded-full px-3 py-1 text-slate-500 hover:bg-slate-100">&lt;</button>
-          <button className="rounded-full bg-emerald-700 px-3 py-1 text-white">1</button>
-          <button className="rounded-full px-3 py-1 text-slate-900">2</button>
-          <button className="rounded-full px-3 py-1 text-slate-900">3</button>
-          <span className="px-2 py-1 text-slate-500">...</span>
-          <button className="rounded-full px-3 py-1 text-slate-900">249</button>
-          <button className="rounded-full px-3 py-1 text-slate-500 hover:bg-slate-100">&gt;</button>
+          {sortedAndFiltered.length > visibleCount && (
+            <button
+              onClick={() => setVisibleCount((prev) => Math.min(prev + 50, sortedAndFiltered.length))}
+              className="rounded-full bg-slate-100 hover:bg-slate-200 px-4 py-1 text-slate-700 font-medium text-xs transition"
+            >
+              Load More
+            </button>
+          )}
         </div>
       </div>
 

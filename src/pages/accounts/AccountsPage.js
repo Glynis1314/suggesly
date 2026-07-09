@@ -8,6 +8,7 @@ import AddCompanyModal from '../../components/AddCompanyModal';
 import BulkImportModal from '../../components/BulkImportModal';
 import { useAccounts } from '../../context/AccountsContext';
 import { getAccountId } from '../../utils/recordIds';
+import { useTableColumns } from '../../utils/useTableColumns';
 import {
   accountStageOptions,
   accountPriorityOptions,
@@ -107,6 +108,37 @@ export default function AccountsPage() {
   const viewRef = useRef(null);
   const builderRef = useRef(null);
 
+  const [visibleCount, setVisibleCount] = useState(30);
+
+  const {
+    columns,
+    dragOverColIndex,
+    handleResizeStart,
+    handleDragStart,
+    handleDragOver,
+    handleDrop,
+  } = useTableColumns([
+    { id: 'company', label: 'Company Name', width: 220 },
+    { id: 'owner', label: 'Owner', width: 140 },
+    { id: 'source', label: 'Source', width: 140 },
+    { id: 'priority', label: 'Priority', width: 90 },
+    { id: 'stage', label: 'Stage', width: 120 },
+    { id: 'notes', label: 'Notes', width: 180 },
+    { id: 'nextSteps', label: 'Next Steps', width: 160 },
+    { id: 'nextActionDate', label: 'Next Action', width: 110 },
+    { id: 'lastActivityDate', label: 'Last Activity', width: 110 },
+    { id: 'createdDate', label: 'Created', width: 110 },
+    { id: 'country', label: 'Country', width: 100 },
+    { id: 'custom', label: 'Custom', width: 100 },
+    { id: 'city', label: 'City', width: 100 },
+    { id: 'employeeSize', label: 'Employee Size', width: 110 },
+    { id: 'linkedin', label: 'LinkedIn URL', width: 100 },
+  ]);
+
+  useEffect(() => {
+    setVisibleCount(30);
+  }, [globalSearch, filters, selectedView]);
+
   const ownerOptions = useMemo(
     () => Array.from(new Set(rows.map((row) => row.owner))).sort(),
     [rows],
@@ -154,8 +186,8 @@ export default function AccountsPage() {
         selectedView === 'All Companies'
           ? true
           : selectedView === 'My Companies'
-          ? row.owner === currentUser
-          : parseDate(row.lastActivityDate) >= Date.now() - 14 * 86_400_000;
+            ? row.owner === currentUser
+            : parseDate(row.lastActivityDate) >= Date.now() - 14 * 86_400_000;
 
       if (!viewMatch) {
         return false;
@@ -231,8 +263,8 @@ export default function AccountsPage() {
     const value = filterPropertyType === 'date' && filterCondition === 'is within'
       ? { value: filterValue, valueExtra: filterValueExtra }
       : filterPropertyType === 'multiselect' && filterCondition === 'is any of'
-      ? filterValue.split(',').map((item) => item.trim()).filter(Boolean)
-      : filterValue;
+        ? filterValue.split(',').map((item) => item.trim()).filter(Boolean)
+        : filterValue;
 
     if (!filterValue) {
       return;
@@ -275,6 +307,113 @@ export default function AccountsPage() {
       return `${filterValue} → ${filterValueExtra}`;
     }
     return filterValue;
+  };
+
+  const renderCellContent = (row, colId) => {
+    switch (colId) {
+      case 'company':
+        return (
+          <div className="flex h-full items-center gap-3 min-w-0">
+            <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-xl font-semibold ${row.color}`}>
+              {row.init}
+            </div>
+            <div className="min-w-0">
+              <Link
+                to={`/accounts/${getAccountId(row)}`}
+                className="text-sm font-semibold text-slate-900 hover:text-emerald-700 hover:underline block truncate"
+              >
+                {row.company}
+              </Link>
+              <a href={`https://${row.site}`} target="_blank" rel="noreferrer" className="mt-1 block truncate text-sm text-slate-500 hover:text-slate-700">
+                {row.site}
+              </a>
+            </div>
+          </div>
+        );
+      case 'owner':
+        return (
+          <EditableCell
+            type="owner"
+            value={row.owner}
+            options={ownerOptions}
+            onSave={(value) => handleSave(getAccountId(row), 'owner', value)}
+          />
+        );
+      case 'source':
+        return (
+          <EditableCell
+            type="multiselect"
+            value={row.source}
+            options={accountSourceOptions}
+            onSave={(value) => handleSave(getAccountId(row), 'source', value)}
+          />
+        );
+      case 'priority':
+        return (
+          <EditableCell
+            type="select"
+            value={row.priority}
+            options={accountPriorityOptions}
+            onSave={(value) => handleSave(getAccountId(row), 'priority', value)}
+          />
+        );
+      case 'stage':
+        return (
+          <EditableCell
+            type="stage"
+            value={row.stage}
+            options={accountStageOptions}
+            onSave={(value) => handleSave(getAccountId(row), 'stage', value)}
+          />
+        );
+      case 'notes':
+        return (
+          <EditableCell type="textarea" value={row.notes} onSave={(value) => handleSave(getAccountId(row), 'notes', value)} />
+        );
+      case 'nextSteps':
+        return (
+          <EditableCell type="text" value={row.nextSteps} onSave={(value) => handleSave(getAccountId(row), 'nextSteps', value)} />
+        );
+      case 'nextActionDate':
+        return (
+          <EditableCell type="date" value={row.nextActionDate} onSave={(value) => handleSave(getAccountId(row), 'nextActionDate', value)} />
+        );
+      case 'lastActivityDate':
+        return (
+          <EditableCell type="date" value={row.lastActivityDate} onSave={(value) => handleSave(getAccountId(row), 'lastActivityDate', value)} />
+        );
+      case 'createdDate':
+        return (
+          <EditableCell type="date" value={row.createdDate} onSave={(value) => handleSave(getAccountId(row), 'createdDate', value)} />
+        );
+      case 'country':
+        return (
+          <EditableCell type="text" value={row.country} onSave={(value) => handleSave(getAccountId(row), 'country', value)} />
+        );
+      case 'custom':
+        return (
+          <EditableCell type="text" value={row.custom} onSave={(value) => handleSave(getAccountId(row), 'custom', value)} />
+        );
+      case 'city':
+        return (
+          <EditableCell type="text" value={row.city} onSave={(value) => handleSave(getAccountId(row), 'city', value)} />
+        );
+      case 'employeeSize':
+        return (
+          <EditableCell
+            type="select"
+            value={row.employeeSize}
+            options={accountEmployeeSizeOptions}
+            onSave={(value) => handleSave(getAccountId(row), 'employeeSize', value)}
+          />
+        );
+      case 'linkedin':
+        return (
+          <EditableCell type="linkedin" value={row.linkedin} onSave={(value) => handleSave(getAccountId(row), 'linkedin', value)} />
+        );
+      default:
+        return null;
+    }
   };
 
   return (
@@ -523,8 +662,16 @@ export default function AccountsPage() {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-slate-300 bg-white">
-        <div className="max-h-[calc(100vh-26rem)] overflow-y-auto">
+      <div className="overflow-hidden rounded-2xl border border-slate-300 bg-white w-full">
+        <div
+          className="max-h-[calc(100vh-26rem)] overflow-y-auto overflow-x-hidden w-full"
+          onScroll={(e) => {
+            const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+            if (scrollHeight - scrollTop - clientHeight < 150) {
+              setVisibleCount((prev) => Math.min(prev + 30, filteredRows.length));
+            }
+          }}
+        >
           <table className="w-full table-fixed">
             <thead className="sticky top-0 z-10 bg-white">
               <tr className="border-b border-gray-100 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
@@ -536,28 +683,36 @@ export default function AccountsPage() {
                     className="h-5 w-5 rounded border-slate-300"
                   />
                 </th>
-                <th className="w-[220px] px-5 py-4">Company</th>
-                <th className="w-[140px] px-5 py-4">Owner</th>
-                <th className="w-[140px] px-5 py-4">Source</th>
-                <th className="w-[90px] px-5 py-4">Priority</th>
-                <th className="w-[120px] px-5 py-4">Stage</th>
-                <th className="w-[180px] px-5 py-4">Notes</th>
-                <th className="w-[160px] px-5 py-4">Next Steps</th>
-                <th className="w-[110px] px-5 py-4">Next Action</th>
-                <th className="w-[110px] px-5 py-4">Last Activity</th>
-                <th className="w-[110px] px-5 py-4">Created</th>
-                <th className="w-[100px] px-5 py-4">Country</th>
-                <th className="w-[100px] px-5 py-4">Custom</th>
-                <th className="w-[100px] px-5 py-4">City</th>
-                <th className="w-[110px] px-5 py-4">Employee Size</th>
-                <th className="w-[90px] px-5 py-4">LinkedIn</th>
+                {columns.map((col, index) => (
+                  <th
+                    key={col.id}
+                    style={{ width: `${col.width}px` }}
+                    className={`relative px-5 py-4 select-none group border-r border-slate-100 last:border-0 ${dragOverColIndex === index ? 'bg-slate-100 border-l-2 border-l-emerald-500' : ''
+                      }`}
+                    draggable
+                    onDragStart={(e) => handleDragStart(index, e)}
+                    onDragOver={(e) => handleDragOver(index, e)}
+                    onDrop={(e) => handleDrop(index, e)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="truncate cursor-grab active:cursor-grabbing font-semibold">
+                        {col.label}
+                      </span>
+                      <div
+                        onMouseDown={(e) => handleResizeStart(index, e)}
+                        className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize opacity-0 group-hover:opacity-100 hover:opacity-100 bg-slate-300 active:bg-emerald-500 transition-opacity"
+                        style={{ zIndex: 2 }}
+                      />
+                    </div>
+                  </th>
+                ))}
                 <th className="w-[72px] px-5 py-4">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filteredRows.map((row) => (
+              {filteredRows.slice(0, visibleCount).map((row) => (
                 <tr key={getAccountId(row)} className="border-b border-slate-200 bg-white hover:bg-slate-50">
-                  <td className="px-5 py-4 align-middle">
+                  <td className="px-5 py-4 align-middle w-[52px]">
                     <div className="flex h-full items-center">
                       <input
                         type="checkbox"
@@ -567,120 +722,14 @@ export default function AccountsPage() {
                       />
                     </div>
                   </td>
-                  <td className="px-5 py-4 align-middle">
-                    <div className="flex h-full items-center gap-3 min-w-0">
-                      <div className={`flex h-11 w-11 items-center justify-center rounded-md text-xl font-semibold ${row.color}`}>
-                        {row.init}
+                  {columns.map((col) => (
+                    <td key={col.id} style={{ width: `${col.width}px` }} className="px-5 py-4 align-middle overflow-hidden">
+                      <div className="flex h-full items-center min-w-0 truncate">
+                        {renderCellContent(row, col.id)}
                       </div>
-                      <div className="min-w-0">
-                        <Link
-                          to={`/accounts/${getAccountId(row)}`}
-                          className="text-sm font-semibold text-slate-900 hover:text-emerald-700 hover:underline"
-                        >
-                          {row.company}
-                        </Link>
-                        <a href={`https://${row.site}`} target="_blank" rel="noreferrer" className="mt-1 block truncate text-sm text-slate-500 hover:text-slate-700">
-                          {row.site}
-                        </a>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-5 py-4 align-middle">
-                    <div className="flex h-full items-center">
-                      <EditableCell
-                        type="owner"
-                        value={row.owner}
-                        options={ownerOptions}
-                        onSave={(value) => handleSave(getAccountId(row), 'owner', value)}
-                      />
-                    </div>
-                  </td>
-                  <td className="px-5 py-4 align-middle">
-                    <div className="flex h-full items-center">
-                      <EditableCell
-                        type="multiselect"
-                        value={row.source}
-                        options={accountSourceOptions}
-                        onSave={(value) => handleSave(getAccountId(row), 'source', value)}
-                      />
-                    </div>
-                  </td>
-                  <td className="px-5 py-4 align-middle">
-                    <div className="flex h-full items-center">
-                      <EditableCell
-                        type="select"
-                        value={row.priority}
-                        options={accountPriorityOptions}
-                        onSave={(value) => handleSave(getAccountId(row), 'priority', value)}
-                      />
-                    </div>
-                  </td>
-                  <td className="px-5 py-4 align-middle">
-                    <div className="flex h-full items-center">
-                      <EditableCell
-                        type="stage"
-                        value={row.stage}
-                        options={accountStageOptions}
-                        onSave={(value) => handleSave(getAccountId(row), 'stage', value)}
-                      />
-                    </div>
-                  </td>
-                  <td className="px-5 py-4 align-middle text-sm text-slate-700">
-                    <div className="flex h-full items-center">
-                      <EditableCell type="textarea" value={row.notes} onSave={(value) => handleSave(getAccountId(row), 'notes', value)} />
-                    </div>
-                  </td>
-                  <td className="px-5 py-4 align-middle text-sm text-slate-700">
-                    <div className="flex h-full items-center">
-                      <EditableCell type="text" value={row.nextSteps} onSave={(value) => handleSave(getAccountId(row), 'nextSteps', value)} />
-                    </div>
-                  </td>
-                  <td className="px-5 py-4 align-middle text-sm text-slate-600">
-                    <div className="flex h-full items-center">
-                      <EditableCell type="date" value={row.nextActionDate} onSave={(value) => handleSave(getAccountId(row), 'nextActionDate', value)} />
-                    </div>
-                  </td>
-                  <td className="px-5 py-4 align-middle text-sm text-slate-600">
-                    <div className="flex h-full items-center">
-                      <EditableCell type="date" value={row.lastActivityDate} onSave={(value) => handleSave(getAccountId(row), 'lastActivityDate', value)} />
-                    </div>
-                  </td>
-                  <td className="px-5 py-4 align-middle text-sm text-slate-600">
-                    <div className="flex h-full items-center">
-                      <EditableCell type="date" value={row.createdDate} onSave={(value) => handleSave(getAccountId(row), 'createdDate', value)} />
-                    </div>
-                  </td>
-                  <td className="px-5 py-4 align-middle text-sm text-slate-900">
-                    <div className="flex h-full items-center">
-                      <EditableCell type="text" value={row.country} onSave={(value) => handleSave(getAccountId(row), 'country', value)} />
-                    </div>
-                  </td>
-                  <td className="px-5 py-4 align-middle text-sm text-slate-900">
-                    <div className="flex h-full items-center">
-                      <EditableCell type="text" value={row.custom} onSave={(value) => handleSave(getAccountId(row), 'custom', value)} />
-                    </div>
-                  </td>
-                  <td className="px-5 py-4 align-middle text-sm text-slate-900">
-                    <div className="flex h-full items-center">
-                      <EditableCell type="text" value={row.city} onSave={(value) => handleSave(getAccountId(row), 'city', value)} />
-                    </div>
-                  </td>
-                  <td className="px-5 py-4 align-middle">
-                    <div className="flex h-full items-center">
-                      <EditableCell
-                        type="select"
-                        value={row.employeeSize}
-                        options={accountEmployeeSizeOptions}
-                        onSave={(value) => handleSave(getAccountId(row), 'employeeSize', value)}
-                      />
-                    </div>
-                  </td>
-                  <td className="px-5 py-4 align-middle">
-                    <div className="flex h-full items-center">
-                      <EditableCell type="linkedin" value={row.linkedin} onSave={(value) => handleSave(getAccountId(row), 'linkedin', value)} />
-                    </div>
-                  </td>
-                  <td className="px-5 py-4 align-middle text-slate-400">
+                    </td>
+                  ))}
+                  <td className="px-5 py-4 align-middle text-slate-400 w-[72px]">
                     <div className="flex h-full items-center">...
                     </div>
                   </td>
@@ -692,15 +741,23 @@ export default function AccountsPage() {
       </div>
 
       <div className="border-t border-slate-200 px-5 py-3 text-sm text-slate-500 flex items-center justify-between">
-        <div>Showing 1 to {Math.min(filteredRows.length, 10)} of {filteredRows.length} results</div>
+        <div>
+          Showing {Math.min(filteredRows.length, visibleCount)} of {filteredRows.length} results
+          {filteredRows.length > visibleCount && (
+            <span className="ml-2 text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+              Scroll down to load more
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-2">
-          <button className="rounded-full px-3 py-1 text-slate-500 hover:bg-slate-100">&lt;</button>
-          <button className="rounded-full bg-emerald-700 px-3 py-1 text-white">1</button>
-          <button className="rounded-full px-3 py-1 text-slate-900">2</button>
-          <button className="rounded-full px-3 py-1 text-slate-900">3</button>
-          <span className="px-2 py-1 text-slate-500">...</span>
-          <button className="rounded-full px-3 py-1 text-slate-900">10</button>
-          <button className="rounded-full px-3 py-1 text-slate-500 hover:bg-slate-100">&gt;</button>
+          {filteredRows.length > visibleCount && (
+            <button
+              onClick={() => setVisibleCount((prev) => Math.min(prev + 50, filteredRows.length))}
+              className="rounded-full bg-slate-100 hover:bg-slate-200 px-4 py-1 text-slate-700 font-medium text-xs transition"
+            >
+              Load More
+            </button>
+          )}
         </div>
       </div>
     </section>
