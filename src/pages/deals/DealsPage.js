@@ -112,10 +112,6 @@ export default function DealsPage() {
     { id: 'upcomingTask', label: 'Upcoming Task', width: 200 },
   ]);
 
-  const totalTableWidth = useMemo(() => {
-    return columns.reduce((acc, col) => acc + col.width, 0);
-  }, [columns]);
-
   useEffect(() => {
     setVisibleCount(30);
   }, [
