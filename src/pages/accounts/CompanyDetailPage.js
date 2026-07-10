@@ -3,6 +3,7 @@ import { useAccounts } from '../../context/AccountsContext';
 import { useContacts } from '../../context/ContactsContext';
 import { useDeals } from '../../context/DealsContext';
 import { getAccountId, getContactId } from '../../utils/recordIds';
+import { formatDateLocal, formatCurrency } from '../../utils/format';
 import EditableCell from '../../components/EditableCell';
 import RecordActivityTabs from '../../components/RecordActivityTabs';
 import AssociationList from '../../components/AssociationList';
@@ -16,11 +17,7 @@ import {
 
 const ownerOptions = ['Alex Rivera', 'Jane Smith', 'Sarah Jenkins', 'Kevin Malone', 'Michael Chen', 'Olivia Lee'];
 
-function formatDate(value) {
-  if (!value) return '—';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString();
-}
+
 
 export default function CompanyDetailPage() {
   const { companyId } = useParams();
@@ -122,11 +119,11 @@ export default function CompanyDetailPage() {
               </Field>
               <Field label="Next Action Date">
                 <EditableCell type="date" value={account.nextActionDate} onSave={save('nextActionDate')} />
-                <p className="mt-1 text-xs text-slate-400">{formatDate(account.nextActionDate)}</p>
+                <p className="mt-1 text-xs text-slate-400">{formatDateLocal(account.nextActionDate)}</p>
               </Field>
               <Field label="Last Activity Date">
                 <EditableCell type="date" value={account.lastActivityDate} onSave={save('lastActivityDate')} />
-                <p className="mt-1 text-xs text-slate-400">{formatDate(account.lastActivityDate)}</p>
+                <p className="mt-1 text-xs text-slate-400">{formatDateLocal(account.lastActivityDate)}</p>
               </Field>
               <Field label="Country">
                 <EditableCell value={account.country} onSave={save('country')} />
@@ -180,7 +177,7 @@ export default function CompanyDetailPage() {
             items={associatedDeals.map((deal) => ({
               href: `/deals/${deal.id}`,
               title: deal.dealName,
-              subtitle: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(deal.dealSize || 0),
+              subtitle: formatCurrency(deal.dealSize || 0),
             }))}
             emptyLabel="No deals associated."
           />

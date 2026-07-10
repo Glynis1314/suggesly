@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import PropTypes from 'prop-types';
 
 export default function SlidePanel({ open, title, children, onClose, actions }) {
   useEffect(() => {
@@ -45,3 +46,11 @@ export default function SlidePanel({ open, title, children, onClose, actions }) 
     </div>
   );
 }
+
+SlidePanel.propTypes = {
+  open: PropTypes.bool.isRequired,
+  title: PropTypes.string,
+  children: PropTypes.node,
+  onClose: PropTypes.func.isRequired,
+  actions: PropTypes.node,
+};

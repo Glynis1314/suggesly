@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import PropTypes from 'prop-types';
 
 const tabs = ['All Activities', 'Notes', 'Tasks'];
 
@@ -162,3 +163,30 @@ export default function RecordActivityTabs({ activities = [], initialNotes = [],
     </div>
   );
 }
+
+RecordActivityTabs.propTypes = {
+  activities: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.string.isRequired,
+      title: PropTypes.string.isRequired,
+      description: PropTypes.string,
+      timestamp: PropTypes.string.isRequired,
+    })
+  ),
+  initialNotes: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.string.isRequired,
+      text: PropTypes.string.isRequired,
+      author: PropTypes.string.isRequired,
+      timestamp: PropTypes.string.isRequired,
+    })
+  ),
+  initialTasks: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.string.isRequired,
+      label: PropTypes.string.isRequired,
+      dueDate: PropTypes.string,
+      done: PropTypes.bool,
+    })
+  ),
+};

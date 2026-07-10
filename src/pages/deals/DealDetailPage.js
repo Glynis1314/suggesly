@@ -3,6 +3,7 @@ import { useDeals } from '../../context/DealsContext';
 import { useAccounts } from '../../context/AccountsContext';
 import { useContacts } from '../../context/ContactsContext';
 import { getAccountId, getContactId } from '../../utils/recordIds';
+import { formatDateLocal, formatCurrency } from '../../utils/format';
 import EditableCell from '../../components/EditableCell';
 import RecordActivityTabs from '../../components/RecordActivityTabs';
 import AssociationList from '../../components/AssociationList';
@@ -11,17 +12,7 @@ import { dealStageOptions } from '../../data/dealsData';
 
 const ownerOptions = ['Alex Rivera', 'Jane Smith', 'Sarah Jenkins', 'Kevin Malone', 'Michael Chen', 'Olivia Lee'];
 
-function formatCurrency(value) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(
-    Number(value) || 0,
-  );
-}
 
-function formatDate(value) {
-  if (!value) return '—';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString();
-}
 
 export default function DealDetailPage() {
   const { dealId } = useParams();
@@ -110,14 +101,14 @@ export default function DealDetailPage() {
               </Field>
               <Field label="Expected Close Date">
                 <EditableCell type="date" value={deal.expectedCloseDate} onSave={save('expectedCloseDate')} />
-                <p className="mt-1 text-xs text-slate-400">{formatDate(deal.expectedCloseDate)}</p>
+                <p className="mt-1 text-xs text-slate-400">{formatDateLocal(deal.expectedCloseDate)}</p>
               </Field>
               <Field label="Next Step">
                 <EditableCell value={deal.nextAction} onSave={save('nextAction')} />
               </Field>
               <Field label="Next Step Due Date">
                 <EditableCell type="date" value={deal.nextStepDueDate} onSave={save('nextStepDueDate')} />
-                <p className="mt-1 text-xs text-slate-400">{formatDate(deal.nextStepDueDate)}</p>
+                <p className="mt-1 text-xs text-slate-400">{formatDateLocal(deal.nextStepDueDate)}</p>
               </Field>
               {deal.dealStage === 'Closed Lost' && (
                 <Field label="Lost Reason">

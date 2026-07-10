@@ -1,9 +1,5 @@
-const formatter = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-  maximumFractionDigits: 0,
-});
+import { formatCurrency } from '../utils/format';
 
 export default function CurrencyCell({ value }) {
-  return <span className="text-sm font-medium text-gray-900">{formatter.format(value)}</span>;
+  return <span className="text-sm font-medium text-gray-900">{formatCurrency(value)}</span>;
 }

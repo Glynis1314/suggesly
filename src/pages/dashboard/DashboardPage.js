@@ -1,418 +1,429 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { formatCurrencyCompact } from '../../utils/format';
 import { useDeals } from '../../context/DealsContext';
+import { useAccounts } from '../../context/AccountsContext';
+import { useContacts } from '../../context/ContactsContext';
 import Avatar from '../../components/Avatar';
-import {
-  AreaChart,
-  Area,
-  PieChart,
-  Pie,
-  Cell,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer
-} from 'recharts';
+import StageBadge from '../../components/StageBadge';
+import AddDealModal from '../../components/AddDealModal';
+import { getAccountId } from '../../utils/recordIds';
 import { dealStageOptions } from '../../data/dealsData';
+import FunnelChart from '../../components/FunnelChart';
 
-const COLORS = [
-  '#047857', // emerald-700
-  '#059669', // emerald-600
-  '#10b981', // emerald-500
-  '#34d399', // emerald-400
-  '#6ee7b7', // emerald-300
-  '#a7f3d0', // emerald-200
+const FUNNEL_STAGE_ORDER = [
+  'Deal Created',
+  'POC',
+  'Proposal',
+  'Nurture',
+  'Closed Lost',
+  'Closed Won',
 ];
 
+const STAGE_COLORS = {
+  'Deal Created': '#818cf8', // light indigo/blue
+  'POC': '#6366f1',          // transitioning blue/indigo
+  'Proposal': '#4f46e5',     // rich indigo
+  'Nurture': '#f59e0b',      // amber/orange
+  'Closed Lost': '#f43f5e',  // rose
+  'Closed Won': '#10b981',   // emerald/green
+};
+
 export default function DashboardPage() {
-  const { deals } = useDeals();
+  const { deals, createDeal } = useDeals();
+  const { accounts } = useAccounts();
+  const { contacts } = useContacts();
 
-  // Helper to format currency in a clean compact way, e.g. $1.2M or $350K
-  const formatCurrencyCompact = (value) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      maximumFractionDigits: 1,
-      notation: 'compact'
-    }).format(value);
-  };
+  const [showAddDeal, setShowAddDeal] = useState(false);
+  const [selectedStage, setSelectedStage] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 5;
 
-  // 1. Quarterly Revenue Calculation (Closed Won deals)
-  const closedWonDeals = useMemo(() => {
-    return deals.filter(d => d.dealStage === 'Closed Won');
-  }, [deals]);
-
-  const quarterlyRevenue = useMemo(() => {
-    return closedWonDeals.reduce((sum, d) => sum + (Number(d.dealSize) || 0), 0);
-  }, [closedWonDeals]);
-
-  // Quarterly Revenue Trend data (cumulative sum of Closed Won deals)
-  const revenueTrendData = useMemo(() => {
-    const sorted = [...closedWonDeals].sort(
-      (a, b) => new Date(a.dealCreatedDate).getTime() - new Date(b.dealCreatedDate).getTime()
-    );
-    let cumulative = 0;
-    const points = sorted.map(d => {
-      cumulative += (Number(d.dealSize) || 0);
-      return {
-        date: new Date(d.dealCreatedDate).toLocaleDateString('en-US', { month: 'short' }),
-        revenue: cumulative
-      };
-    });
-
-    if (points.length < 3) {
-      return [
-        { date: 'Q1', revenue: quarterlyRevenue * 0.2 || 100000 },
-        { date: 'Q2', revenue: quarterlyRevenue * 0.5 || 350000 },
-        { date: 'Q3', revenue: quarterlyRevenue * 0.8 || 800000 },
-        { date: 'Q4', revenue: quarterlyRevenue || 1200000 }
-      ];
-    }
-    return points;
-  }, [closedWonDeals, quarterlyRevenue]);
-
-  // 2. Sales Pipeline Stage data
-  const pipelineData = useMemo(() => {
-    const counts = {};
-    dealStageOptions.forEach(stage => {
-      counts[stage] = 0;
-    });
-    deals.forEach(deal => {
-      if (counts[deal.dealStage] !== undefined) {
-        counts[deal.dealStage]++;
-      }
-    });
-
-    const total = deals.length || 1;
-    return dealStageOptions
-      .map(stage => ({
-        name: stage,
-        value: counts[stage],
-        percentage: Math.round((counts[stage] / total) * 100),
-      }))
-      .filter(item => item.value > 0);
-  }, [deals]);
-
-  // 3. Next Best Actions (upcoming tasks)
-  const nextActions = useMemo(() => {
-    return deals
-      .filter(d => d.nextAction && d.nextAction !== '—' && d.nextAction !== '-')
-      .map(d => ({
-        id: d.id,
-        action: d.nextAction,
-        dueDate: d.nextStepDueDate || d.lastActivityDate,
-        company: d.associatedCompany,
-        contact: d.primaryContact,
-      }))
-      .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
-      .slice(0, 5);
-  }, [deals]);
-
-  // 4. Top Performing Rep calculation
-  const topRep = useMemo(() => {
-    const repSales = {};
-    deals.forEach(deal => {
-      if (deal.dealStage === 'Closed Won') {
-        const owner = deal.dealOwner;
-        const size = Number(deal.dealSize) || 0;
-        repSales[owner] = (repSales[owner] || 0) + size;
-      }
-    });
-
-    let topOwner = 'No closed deals';
-    let topVal = 0;
-    Object.entries(repSales).forEach(([owner, val]) => {
-      if (val > topVal) {
-        topVal = val;
-        topOwner = owner;
-      }
-    });
-
-    if (topVal === 0 && deals.length > 0) {
-      topOwner = deals[0].dealOwner;
-      topVal = 0;
-    }
-
+  // 1. Overall Pipeline Statistics (Total ARR, Total Accounts/Deals)
+  const totalStats = useMemo(() => {
+    const totalARR = deals.reduce((sum, d) => sum + (Number(d.dealSize) || 0), 0);
     return {
-      name: topOwner,
-      revenue: topVal,
-      quota: 500000,
+      totalARR,
+      totalAccounts: deals.length,
     };
   }, [deals]);
 
-  // 5. Recent Activities (recent deals updated)
-  const recentActivities = useMemo(() => {
-    return [...deals]
-      .filter(d => d.lastActivityDate)
-      .sort((a, b) => new Date(b.lastActivityDate).getTime() - new Date(a.lastActivityDate).getTime())
-      .slice(0, 5)
-      .map(d => {
-        let outcome = 'Pending';
-        let outcomeColor = 'bg-slate-100 text-slate-700';
-        if (d.dealStage === 'Closed Won') {
-          outcome = 'Won';
-          outcomeColor = 'bg-emerald-100 text-emerald-700';
-        } else if (d.dealStage === 'Closed Lost') {
-          outcome = 'Lost';
-          outcomeColor = 'bg-rose-100 text-rose-700';
-        }
+  // 2. Compute live funnel data for FunnelChart component
+  const funnelData = useMemo(() => {
+    const counts = {};
+    const values = {};
 
-        return {
-          id: d.id,
-          date: new Date(d.lastActivityDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-          customer: d.associatedCompany,
-          activity: d.dealStage,
-          outcome,
-          outcomeColor,
-        };
-      });
-  }, [deals]);
-
-  // 6. Deal Velocity (average days-to-close or deal count over last 3 periods)
-  const velocityData = useMemo(() => {
-    const months = {};
-    closedWonDeals.forEach(deal => {
-      const date = new Date(deal.dealCreatedDate);
-      if (isNaN(date.getTime())) return;
-      const monthName = date.toLocaleDateString('en-US', { month: 'short' });
-
-      const created = new Date(deal.dealCreatedDate).getTime();
-      const closed = deal.expectedCloseDate ? new Date(deal.expectedCloseDate).getTime() : new Date(deal.lastActivityDate).getTime();
-      const diffDays = Math.max(1, Math.round((closed - created) / (1000 * 60 * 60 * 24)));
-
-      if (!months[monthName]) {
-        months[monthName] = { totalDays: 0, count: 0 };
-      }
-      months[monthName].totalDays += diffDays;
-      months[monthName].count++;
+    FUNNEL_STAGE_ORDER.forEach((stage) => {
+      counts[stage] = 0;
+      values[stage] = 0;
     });
 
-    const list = Object.entries(months).map(([month, data]) => ({
-      name: month,
-      velocity: Math.round(data.totalDays / data.count),
+    deals.forEach((deal) => {
+      const stage = deal.dealStage;
+      if (counts[stage] !== undefined) {
+        counts[stage]++;
+        values[stage] += Number(deal.dealSize) || 0;
+      }
+    });
+
+    return FUNNEL_STAGE_ORDER.map((stage) => ({
+      label: stage,
+      count: counts[stage],
+      value: values[stage],
+      color: STAGE_COLORS[stage] || '#64748b',
     }));
+  }, [deals]);
 
-    if (list.length < 3) {
-      return [
-        { name: 'Oct', velocity: 45 },
-        { name: 'Nov', velocity: 38 },
-        { name: 'Dec', velocity: 30 },
-      ];
+  // 3. Fallback stage (stage with most deals, or first stage in order)
+  const defaultStage = useMemo(() => {
+    let bestStage = FUNNEL_STAGE_ORDER[0];
+    let maxCount = -1;
+
+    funnelData.forEach((stage) => {
+      if (stage.count > maxCount) {
+        maxCount = stage.count;
+        bestStage = stage.label;
+      }
+    });
+
+    return bestStage;
+  }, [funnelData]);
+
+  const activeStage = selectedStage || defaultStage;
+
+  // 4. Deals in active stage
+  const dealsInActiveStage = useMemo(() => {
+    return deals.filter((d) => d.dealStage === activeStage);
+  }, [deals, activeStage]);
+
+  // 5. Paginated Accounts sorted by lastActivityDate descending
+  const sortedAccounts = useMemo(() => {
+    return [...accounts].sort((a, b) => {
+      const dateA = a.lastActivityDate ? new Date(a.lastActivityDate).getTime() : 0;
+      const dateB = b.lastActivityDate ? new Date(b.lastActivityDate).getTime() : 0;
+      return dateB - dateA;
+    });
+  }, [accounts]);
+
+  const totalPages = Math.ceil(sortedAccounts.length / pageSize);
+  const paginatedAccounts = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return sortedAccounts.slice(start, start + pageSize);
+  }, [sortedAccounts, currentPage]);
+
+  // Ensure current page is valid when accounts list updates
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
     }
+  }, [totalPages, currentPage]);
 
-    return list.slice(-3);
-  }, [closedWonDeals]);
+  // Helper to format currency values
+  const formatTotalARR = (value) => formatCurrencyCompact(value, 2);
+  const formatDealSizeCompact = (value) => formatCurrencyCompact(value, 0);
+
+  // Helper to generate initials & color for company avatars
+  const getAccountInitialsAndColor = (account) => {
+    const companyName = account.company || 'U';
+    const init = account.init || companyName.charAt(0).toUpperCase();
+    const colors = [
+      'bg-emerald-100 text-emerald-700',
+      'bg-sky-100 text-sky-700',
+      'bg-amber-100 text-amber-700',
+      'bg-indigo-100 text-indigo-700',
+      'bg-rose-100 text-rose-700',
+      'bg-slate-100 text-slate-700',
+    ];
+    const hash = companyName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const color = account.color || colors[hash % colors.length];
+    return { init, color };
+  };
+
+  // Helper for owner avatars and formatted names
+  const getOwnerInitials = (ownerName) => {
+    if (!ownerName) return '??';
+    return ownerName
+      .split(' ')
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join('');
+  };
+
+  const getOwnerFormattedName = (ownerName) => {
+    if (!ownerName) return '—';
+    const parts = ownerName.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0];
+    return `${parts[0]} ${parts[parts.length - 1].charAt(0)}.`;
+  };
+
+  // Helper to generate a relative time string
+  const formatRelativeTime = (dateStr) => {
+    if (!dateStr) return '—';
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return dateStr;
+    const now = new Date();
+
+    const diffMs = now.getTime() - date.getTime();
+    if (diffMs < 0) {
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffMins < 60) {
+      if (diffMins <= 0) return 'Just now';
+      return `${diffMins} ${diffMins === 1 ? 'minute' : 'minutes'} ago`;
+    }
+    if (diffHours < 24) {
+      return `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
+    }
+    if (diffDays === 1) {
+      return 'Yesterday';
+    }
+    if (diffDays < 7) {
+      return `${diffDays} days ago`;
+    }
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
 
   return (
-    <section className="p-4 md:p-8 space-y-6 max-h-[calc(100vh-4rem)] overflow-y-auto">
+    <section className="p-4 md:p-8 max-w-[1600px] mx-auto space-y-6 max-h-[calc(100vh-5rem)] overflow-y-auto w-full">
+      {/* 1. Page Header */}
       <div>
-        <h1 className="text-4xl font-extrabold tracking-tight text-slate-900">
-          Sales Performance Overview
-        </h1>
+        <div className="text-sm text-slate-400">CRM &gt; Funnel View &gt; Deals Funnel</div>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mt-1">
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Deals Funnel View</h1>
+          <div className="flex items-center gap-3">
+            <button className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition shadow-sm">
+              Filters
+            </button>
+            <button
+              onClick={() => setShowAddDeal(true)}
+              className="rounded-full bg-emerald-600 hover:bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition shadow-sm"
+            >
+              + New Deal
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* ROW 1 & ROW 2 GRID */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Quarterly Revenue Card */}
-        <div className="rounded-2xl border-2 border-emerald-600 bg-white p-6 shadow-sm flex flex-col justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-slate-800">Quarterly Revenue</h2>
-            <div className="flex items-end justify-between mt-4">
-              <div>
-                <span className="text-sm font-medium text-emerald-600">Target: +15%</span>
-                <h3 className="text-4xl font-extrabold text-slate-900 mt-1">
-                  {formatCurrencyCompact(quarterlyRevenue)}
-                </h3>
-              </div>
-              <div className="w-1/2 h-[120px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={revenueTrendData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-                    <defs>
-                      <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
-                        <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
-                      </linearGradient>
-                    </defs>
-                    <Tooltip
-                      formatter={(value) => [`$${value.toLocaleString()}`, 'Cumulative Revenue']}
-                      contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0' }}
-                    />
-                    <Area type="monotone" dataKey="revenue" stroke="#059669" strokeWidth={2.5} fillOpacity={1} fill="url(#colorRevenue)" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
+      {/* 2 & 3. Conversion Funnel & Stage Details Panel Grid */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* Left: Conversion Funnel Card */}
+        <div className="lg:col-span-2 h-[520px] max-h-[520px] rounded-3xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col">
+          <div className="flex items-center justify-between mb-6 shrink-0">
+            <h2 className="text-lg font-bold text-slate-900">Sales Funnel</h2>
+            <div className="flex items-center gap-4 text-sm text-slate-500 font-medium">
+              <span>
+                Total ARR:{' '}
+                <span className="text-slate-900 font-semibold">
+                  {formatTotalARR(totalStats.totalARR)}
+                </span>
+              </span>
+              <span className="w-1.5 h-1.5 bg-slate-300 rounded-full" />
+              <span>
+                Total Accounts:{' '}
+                <span className="text-slate-900 font-semibold">
+                  {totalStats.totalAccounts}
+                </span>
+              </span>
             </div>
+          </div>
+
+          <div className="flex-1 min-h-0 flex items-center justify-center">
+            <FunnelChart
+              data={funnelData}
+              selectedStage={activeStage}
+              onSelectStage={setSelectedStage}
+            />
           </div>
         </div>
 
-        {/* Sales Pipeline Stage Card */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-slate-800">Sales Pipeline Stage</h2>
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-6 mt-4">
-              <div className="w-1/2 h-[130px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={pipelineData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={38}
-                      outerRadius={55}
-                      paddingAngle={4}
-                      dataKey="value"
-                    >
-                      {pipelineData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value) => [`${value} deals`, 'Deals Count']} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="w-1/2 grid grid-cols-1 gap-2">
-                {pipelineData.map((item, index) => (
-                  <div key={item.name} className="flex items-center gap-2 text-xs text-slate-600">
-                    <span
-                      className="inline-block w-2.5 h-2.5 rounded-sm shrink-0"
-                      style={{ backgroundColor: COLORS[index % COLORS.length] }}
+        {/* Right: Stage Detail Panel */}
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col h-[520px] max-h-[520px]">
+          <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+            <h2 className="text-lg font-bold text-slate-900 mb-6 sticky top-0 bg-white pb-2 z-10 border-b border-slate-100 shrink-0">
+              {activeStage} ({dealsInActiveStage.length})
+            </h2>
+
+            <div className="space-y-3">
+              {dealsInActiveStage.slice(0, 6).map((deal) => (
+                <div
+                  key={deal.id}
+                  className="flex items-center justify-between py-3 px-4 rounded-2xl border border-slate-100 hover:border-slate-200 transition bg-slate-50/50"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Avatar
+                      name={deal.associatedCompany}
+                      size="sm"
+                      className="bg-emerald-100 text-emerald-700 font-semibold shrink-0"
                     />
-                    <span className="font-semibold truncate">{item.name}</span>
-                    <span className="text-slate-400">({item.percentage}%)</span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-slate-900 truncate">
+                        {deal.associatedCompany}
+                      </p>
+                      <p className="text-sm font-semibold text-emerald-600 mt-0.5">
+                        {formatDealSizeCompact(deal.dealSize)} ARR
+                      </p>
+                    </div>
                   </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Next Best Actions Card */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-slate-800">Next Best Actions</h2>
-            <div className="mt-4 space-y-4">
-              {nextActions.length === 0 ? (
-                <div className="py-10 text-center text-sm text-slate-500">
-                  No upcoming actions — you're all caught up.
+                  <button className="text-slate-400 hover:text-slate-600 p-1 font-bold text-lg leading-none rounded">
+                    ...
+                  </button>
                 </div>
-              ) : (
-                nextActions.map((item) => (
-                  <div key={item.id} className="flex items-start gap-3">
-                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
-                      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                      </svg>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-slate-900 leading-tight">
-                        {item.contact ? `Follow up with ${item.contact}` : item.action}
-                      </p>
-                      <p className="text-xs text-slate-500 mt-1 truncate">
-                        {item.company} &bull; Due {new Date(item.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      </p>
-                    </div>
-                  </div>
-                ))
+              ))}
+
+              {dealsInActiveStage.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+                  <svg className="h-10 w-10 text-slate-300 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0a2 2 0 01-2 2H6a2 2 0 01-2-2m16 0V9a2 2 0 00-2-2H6a2 2 0 00-2 2v2m16 4h-2a2 2 0 00-2 2v3m-6-6h-2a2 2 0 00-2 2v3" />
+                  </svg>
+                  <p className="text-sm font-medium">No deals in {activeStage}</p>
+                </div>
               )}
             </div>
           </div>
-          {deals.filter(d => d.nextAction && d.nextAction !== '—' && d.nextAction !== '-').length > 5 && (
-            <div className="mt-4 pt-3 border-t border-slate-100">
-              <a href="/deals" className="text-xs font-bold text-emerald-700 hover:text-emerald-800 hover:underline">
-                View all actions &rarr;
-              </a>
+
+          {dealsInActiveStage.length > 6 && (
+            <div className="pt-4 border-t border-slate-100 mt-4 text-center shrink-0">
+              <Link
+                to="/deals"
+                className="text-xs font-bold text-emerald-700 hover:text-emerald-800 hover:underline"
+              >
+                View All {dealsInActiveStage.length} in {activeStage}
+              </Link>
             </div>
           )}
         </div>
-
-        {/* Top Performing Rep Card */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-slate-800">Top Performing Rep</h2>
-            <div className="mt-5 flex items-center gap-4">
-              <Avatar name={topRep.name} size="lg" className="border border-emerald-100 shadow-sm" />
-              <div className="min-w-0">
-                <h3 className="text-xl font-extrabold text-slate-900 leading-tight">{topRep.name}</h3>
-                <p className="text-xs text-slate-500 mt-1">Quarterly Sales Leader</p>
-              </div>
-            </div>
-            <div className="mt-6">
-              <div className="flex justify-between items-center text-xs font-semibold text-slate-600 mb-2">
-                <span>Quota Progress</span>
-                <span>
-                  {formatCurrencyCompact(topRep.revenue)} / {formatCurrencyCompact(topRep.quota)} (Q)
-                </span>
-              </div>
-              <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-emerald-600 rounded-full transition-all duration-500"
-                  style={{ width: `${Math.min(100, Math.round((topRep.revenue / topRep.quota) * 100))}%` }}
-                />
-              </div>
-              <p className="text-[10px] text-slate-400 mt-2">
-                Current achievement: {Math.round((topRep.revenue / topRep.quota) * 100)}% of quarterly target
-              </p>
-            </div>
-          </div>
-        </div>
       </div>
 
-      {/* ROW 3 GRID */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-        {/* Recent Activities Table Card */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-3 flex flex-col justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-slate-800">Recent Activities</h2>
-            <div className="mt-4 overflow-x-auto border border-slate-100 rounded-xl">
-              <table className="w-full text-left border-collapse min-w-[500px]">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                    <th className="px-4 py-3">Date</th>
-                    <th className="px-4 py-3">Customer</th>
-                    <th className="px-4 py-3">Activity</th>
-                    <th className="px-4 py-3">Outcome</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentActivities.map((act) => (
-                    <tr key={act.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors text-xs">
-                      <td className="px-4 py-3 text-slate-500">{act.date}</td>
-                      <td className="px-4 py-3 font-semibold text-slate-900">{act.customer}</td>
-                      <td className="px-4 py-3 text-slate-700">{act.activity}</td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wide ${act.outcomeColor}`}>
-                          {act.outcome}
-                        </span>
+      {/* 4. Recent Company/Account Activity Table */}
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold text-slate-900">Recent Activity</h2>
+          <div className="flex items-center gap-2">
+            <button className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-800 transition" title="Export">
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+            </button>
+            <button className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-800 transition">
+              <span className="font-bold text-lg leading-none">...</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="overflow-hidden rounded-2xl border border-slate-300 bg-white w-full">
+          <div className="overflow-x-auto w-full">
+            <table className="w-full text-left border-collapse min-w-[700px]">
+              <thead className="sticky top-0 z-10 bg-white">
+                <tr className="border-b border-gray-100 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 bg-slate-50/50">
+                  <th className="px-5 py-4">Account Name</th>
+                  <th className="px-5 py-4">Owner</th>
+                  <th className="px-5 py-4">Location</th>
+                  <th className="px-5 py-4">Stage</th>
+                  <th className="px-5 py-4">Last Activity</th>
+                  <th className="px-5 py-4">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedAccounts.map((account) => {
+                  const { init, color } = getAccountInitialsAndColor(account);
+                  return (
+                    <tr key={getAccountId(account)} className="border-b border-slate-200 bg-white hover:bg-slate-50 transition-colors text-sm">
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-semibold uppercase ${color}`}>
+                            {init}
+                          </div>
+                          <span className="font-bold text-slate-900 truncate">
+                            {account.company}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-2">
+                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-200 text-[10px] font-bold text-slate-600">
+                            {getOwnerInitials(account.owner)}
+                          </div>
+                          <span className="text-slate-700 font-medium truncate">
+                            {getOwnerFormattedName(account.owner)}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4 text-slate-600">
+                        {account.city && account.country
+                          ? `${account.city}, ${account.country}`
+                          : account.city || account.country || '—'}
+                      </td>
+                      <td className="px-5 py-4">
+                        <StageBadge stage={account.stage} />
+                      </td>
+                      <td className="px-5 py-4 text-slate-500">
+                        {formatRelativeTime(account.lastActivityDate)}
+                      </td>
+                      <td className="px-5 py-4">
+                        <Link
+                          to={`/accounts/${getAccountId(account)}`}
+                          className="text-xs font-bold text-emerald-700 hover:text-emerald-800 hover:underline transition"
+                        >
+                          View Profile
+                        </Link>
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
 
-        {/* Deal Velocity Bar Chart Card */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2 flex flex-col justify-between">
+        {/* Footer Pagination */}
+        <div className="flex items-center justify-between pt-3 border-t border-slate-100 text-xs text-slate-500">
           <div>
-            <h2 className="text-lg font-bold text-slate-800">Deal Velocity</h2>
-            <div className="w-full h-[180px] mt-4">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={velocityData} margin={{ top: 10, right: 5, left: -25, bottom: 0 }}>
-                  <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                  <YAxis tickLine={false} axisLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                  <Tooltip
-                    formatter={(value) => [`${value} days`, 'Avg. Time to Close']}
-                    contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0' }}
-                  />
-                  <Bar dataKey="velocity" fill="#059669" radius={[4, 4, 0, 0]} barSize={28} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            Showing{' '}
+            <span className="font-semibold text-slate-800">
+              {Math.min(sortedAccounts.length, (currentPage - 1) * pageSize + 1)}
+            </span>{' '}
+            to{' '}
+            <span className="font-semibold text-slate-800">
+              {Math.min(sortedAccounts.length, currentPage * pageSize)}
+            </span>{' '}
+            of{' '}
+            <span className="font-semibold text-slate-800">{sortedAccounts.length}</span>{' '}
+            companies
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className="px-3.5 py-1.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white text-slate-700 font-semibold transition"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages || totalPages === 0}
+              className="px-3.5 py-1.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white text-slate-700 font-semibold transition"
+            >
+              Next
+            </button>
           </div>
         </div>
       </div>
+
+      <AddDealModal
+        open={showAddDeal}
+        onClose={() => setShowAddDeal(false)}
+        stageOptions={dealStageOptions}
+        companyOptions={accounts.map((row) => row.company)}
+        contactOptions={contacts.map((row) => row.name)}
+        onCreate={(newDeal) => {
+          createDeal(newDeal);
+          setShowAddDeal(false);
+        }}
+      />
     </section>
   );
 }

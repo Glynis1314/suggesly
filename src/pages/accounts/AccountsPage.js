@@ -2,13 +2,12 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import FilterPill from '../../components/FilterPill';
 import EditableCell from '../../components/EditableCell';
-import OwnerAvatar from '../../components/OwnerAvatar';
-import StageBadge from '../../components/StageBadge';
 import AddCompanyModal from '../../components/AddCompanyModal';
 import BulkImportModal from '../../components/BulkImportModal';
 import { useAccounts } from '../../context/AccountsContext';
 import { getAccountId } from '../../utils/recordIds';
 import { useTableColumns } from '../../utils/useTableColumns';
+import { usePagination } from '../../utils/usePagination';
 import {
   accountStageOptions,
   accountPriorityOptions,
@@ -58,27 +57,10 @@ const conditionOptions = {
   date: ['is before', 'is after', 'is on', 'is within'],
 };
 
-const priorityStyles = {
-  P0: 'bg-emerald-100 text-emerald-700',
-  P1: 'bg-sky-100 text-sky-700',
-  P2: 'bg-amber-100 text-amber-700',
-  Drop: 'bg-slate-100 text-slate-700',
-};
-
 function ChevronDownIcon({ className = 'h-3 w-3' }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className}>
       <path d="m7 10 5 5 5-5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function LinkIcon({ className = 'h-4 w-4' }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className}>
-      <path d="M15 7h3a5 5 0 0 1 0 10h-3" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M9 17H6a5 5 0 0 1 0-10h3" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M8 12h8" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -95,8 +77,7 @@ export default function AccountsPage() {
   const { accounts: rows, createAccount, importAccounts, updateAccount } = useAccounts();
   const [showAddCompany, setShowAddCompany] = useState(false);
   const [showBulkImport, setShowBulkImport] = useState(false);
-  const [selectedView, setSelectedView] = useState('All Companies');
-  const [globalSearch, setGlobalSearch] = useState('');
+  const globalSearch = '';
   const [filters, setFilters] = useState([]);
   const [showViewDropdown, setShowViewDropdown] = useState(false);
   const [showFilterBuilder, setShowFilterBuilder] = useState(false);
@@ -107,8 +88,6 @@ export default function AccountsPage() {
   const [selectedRows, setSelectedRows] = useState([]);
   const viewRef = useRef(null);
   const builderRef = useRef(null);
-
-  const [visibleCount, setVisibleCount] = useState(30);
 
   const {
     columns,
@@ -135,9 +114,7 @@ export default function AccountsPage() {
     { id: 'linkedin', label: 'LinkedIn URL', width: 100 },
   ]);
 
-  useEffect(() => {
-    setVisibleCount(30);
-  }, [globalSearch, filters, selectedView]);
+  const [selectedView, setSelectedView] = useState('All Companies');
 
   const ownerOptions = useMemo(
     () => Array.from(new Set(rows.map((row) => row.owner))).sort(),
@@ -196,7 +173,6 @@ export default function AccountsPage() {
       return filters.every((filter) => {
         const rowValue = row[filter.property];
         const type = propertyOptions.find((option) => option.key === filter.property)?.type || 'text';
-        const compare = (target) => target?.toString().toLowerCase?.();
 
         if (type === 'text') {
           const needle = filter.value.toString().toLowerCase();
@@ -302,12 +278,7 @@ export default function AccountsPage() {
     }
   };
 
-  const getFilterValueLabel = () => {
-    if (filterPropertyType === 'date' && filterCondition === 'is within') {
-      return `${filterValue} → ${filterValueExtra}`;
-    }
-    return filterValue;
-  };
+  const { visibleCount, handleScroll, loadMore } = usePagination(filteredRows, [globalSearch, filters, selectedView]);
 
   const renderCellContent = (row, colId) => {
     switch (colId) {
@@ -665,12 +636,7 @@ export default function AccountsPage() {
       <div className="overflow-hidden rounded-2xl border border-slate-300 bg-white w-full">
         <div
           className="max-h-[calc(100vh-26rem)] overflow-y-auto overflow-x-hidden w-full"
-          onScroll={(e) => {
-            const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
-            if (scrollHeight - scrollTop - clientHeight < 150) {
-              setVisibleCount((prev) => Math.min(prev + 30, filteredRows.length));
-            }
-          }}
+          onScroll={handleScroll}
         >
           <table className="w-full table-fixed">
             <thead className="sticky top-0 z-10 bg-white">
@@ -752,7 +718,7 @@ export default function AccountsPage() {
         <div className="flex items-center gap-2">
           {filteredRows.length > visibleCount && (
             <button
-              onClick={() => setVisibleCount((prev) => Math.min(prev + 50, filteredRows.length))}
+              onClick={loadMore}
               className="rounded-full bg-slate-100 hover:bg-slate-200 px-4 py-1 text-slate-700 font-medium text-xs transition"
             >
               Load More

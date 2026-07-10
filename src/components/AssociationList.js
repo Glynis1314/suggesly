@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import PropTypes from 'prop-types';
 
 export default function AssociationList({ title, items = [], emptyLabel, addHref }) {
   return (
@@ -33,3 +34,16 @@ export default function AssociationList({ title, items = [], emptyLabel, addHref
     </div>
   );
 }
+
+AssociationList.propTypes = {
+  title: PropTypes.string.isRequired,
+  items: PropTypes.arrayOf(
+    PropTypes.shape({
+      href: PropTypes.string.isRequired,
+      title: PropTypes.string.isRequired,
+      subtitle: PropTypes.string,
+    })
+  ),
+  emptyLabel: PropTypes.string,
+  addHref: PropTypes.string,
+};

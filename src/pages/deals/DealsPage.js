@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDeals } from '../../context/DealsContext';
 import { useTableColumns } from '../../utils/useTableColumns';
+import { usePagination } from '../../utils/usePagination';
 import StageBadge from '../../components/StageBadge';
 import OwnerAvatar from '../../components/OwnerAvatar';
 import CurrencyCell from '../../components/CurrencyCell';
@@ -44,7 +45,7 @@ const avatarPalette = [
 ];
 
 function getDealDisplayName(dealName) {
-  return dealName.replace(/\s*-\s*\$[\d,\.]+/g, '').trim();
+  return dealName.replace(/\s*-\s*\$[0-9,.]+/g, '').trim();
 }
 
 function getAvatarClasses(seed) {
@@ -76,7 +77,7 @@ export default function DealsPage() {
   const { deals, createDeal } = useDeals();
   const [showAddDeal, setShowAddDeal] = useState(false);
   const [showBulkImport, setShowBulkImport] = useState(false);
-  const [globalSearch, setGlobalSearch] = useState('');
+  const globalSearch = '';
   const [selectedView, setSelectedView] = useState('All Deals');
   const [selectedStage, setSelectedStage] = useState('All');
   const [selectedOwner, setSelectedOwner] = useState('All Owners');
@@ -91,8 +92,6 @@ export default function DealsPage() {
   const [dropdownSearch, setDropdownSearch] = useState('');
   const [advancedFilters, setAdvancedFilters] = useState({ country: false, city: false, dealName: false, dealSize: false });
   const dropdownRef = useRef(null);
-
-  const [visibleCount, setVisibleCount] = useState(30);
 
   const {
     columns,
@@ -112,20 +111,7 @@ export default function DealsPage() {
     { id: 'upcomingTask', label: 'Upcoming Task', width: 200 },
   ]);
 
-  useEffect(() => {
-    setVisibleCount(30);
-  }, [
-    globalSearch,
-    selectedView,
-    selectedStage,
-    selectedOwner,
-    selectedCountries,
-    selectedCities,
-    dealNameFilter,
-    dealSizeRange,
-    sortKey,
-    sortDirection,
-  ]);
+
 
   const ownerOptions = useMemo(
     () => ['All Owners', ...Array.from(new Set(deals.map((deal) => deal.dealOwner))).sort()],
@@ -227,6 +213,19 @@ export default function DealsPage() {
 
     return sortDeals(filtered, sortKey, sortDirection);
   }, [deals, globalSearch, selectedView, selectedStage, selectedOwner, selectedCountries, selectedCities, dealNameFilter, dealSizeRange, sortKey, sortDirection]);
+
+  const { visibleCount, handleScroll, loadMore } = usePagination(filteredDeals, [
+    globalSearch,
+    selectedView,
+    selectedStage,
+    selectedOwner,
+    selectedCountries,
+    selectedCities,
+    dealNameFilter,
+    dealSizeRange,
+    sortKey,
+    sortDirection,
+  ]);
 
   const activeChips = [];
 
@@ -828,12 +827,7 @@ export default function DealsPage() {
       <div className="overflow-hidden rounded-2xl border border-slate-300 bg-white w-full">
         <div
           className="max-h-[calc(100vh-26rem)] overflow-y-auto overflow-x-hidden w-full"
-          onScroll={(e) => {
-            const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
-            if (scrollHeight - scrollTop - clientHeight < 150) {
-              setVisibleCount((prev) => Math.min(prev + 30, filteredDeals.length));
-            }
-          }}
+          onScroll={handleScroll}
         >
           <table className="w-full table-fixed">
             <thead className="sticky top-0 z-10 bg-gray-50">
@@ -906,7 +900,7 @@ export default function DealsPage() {
           <div>
             {filteredDeals.length > visibleCount && (
               <button
-                onClick={() => setVisibleCount((prev) => Math.min(prev + 50, filteredDeals.length))}
+                onClick={loadMore}
                 className="rounded-full bg-slate-100 hover:bg-slate-200 px-4 py-1 text-slate-700 font-medium text-xs transition"
               >
                 Load More

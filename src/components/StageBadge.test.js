@@ -13,12 +13,12 @@ describe('StageBadge', () => {
       'justify-center',
       'rounded-full',
       'px-2.5',
-      'py-0.5',
+      'py-1',
       'text-xs',
       'font-semibold',
       'uppercase',
-      'bg-blue-100',
-      'text-blue-700',
+      'bg-gray-100',
+      'text-gray-700',
     );
   });
 });

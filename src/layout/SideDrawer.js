@@ -1,4 +1,6 @@
 import React from 'react';
+import { useDeals } from '../context/DealsContext';
+import { formatCurrencyCompact } from '../utils/format';
 
 function NavIcon({ type, active }) {
   const iconClassName = `h-5 w-5 ${active ? 'text-emerald-700' : 'text-slate-500'}`;
@@ -96,6 +98,19 @@ export default function SideDrawer({
   drawerOpen,
   onClose,
 }) {
+  const { deals } = useDeals();
+
+  const closedWonRevenue = React.useMemo(() => {
+    return deals
+      .filter((d) => d.dealStage === 'Closed Won')
+      .reduce((sum, d) => sum + (Number(d.dealSize) || 0), 0);
+  }, [deals]);
+
+  const QUOTA_TARGET = 2400000; // Placeholder target: $2.4M (real target field/setting coming soon)
+  const progressPercent = Math.min(100, Math.round((closedWonRevenue / QUOTA_TARGET) * 100));
+
+
+
   return (
     <>
       <aside
@@ -103,7 +118,7 @@ export default function SideDrawer({
           drawerOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="mb-10">
+        <div className="mb-6 shrink-0">
           <div className="mb-4 flex items-center gap-3">
             <img
               src="/assets/suggesly_icon.png"
@@ -121,29 +136,51 @@ export default function SideDrawer({
           </div>
         </div>
 
-        <nav className="space-y-2">
-          {navItems.map((item) => {
-            const active = item.label === activeTab;
+        {/* Scrollable navigation and quota progress container */}
+        <div className="flex-1 overflow-y-auto space-y-6 pr-1 min-h-0">
+          <nav className="space-y-2">
+            {navItems.map((item) => {
+              const active = item.label === activeTab;
 
-            return (
-              <button
-                key={item.label}
-                onClick={() => {
-                  setActiveTab(item.label);
-                  onClose();
-                }}
-                className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-lg font-medium transition ${
-                  active ? 'bg-emerald-50 text-emerald-700' : 'text-slate-700 hover:bg-slate-100'
-                }`}
-              >
-                <NavIcon type={item.icon} active={active} />
-                <span>{item.label}</span>
-              </button>
-            );
-          })}
-        </nav>
+              return (
+                <button
+                  key={item.label}
+                  onClick={() => {
+                    setActiveTab(item.label);
+                    onClose();
+                  }}
+                  className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-lg font-medium transition ${
+                    active ? 'bg-emerald-50 text-emerald-700' : 'text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  <NavIcon type={item.icon} active={active} />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </nav>
 
-        <div className="mt-auto border-t border-slate-200 pt-4">
+          {/* Quota Progress Widget */}
+          <div className="rounded-xl bg-emerald-50 p-4 border border-emerald-100 shrink-0">
+            <p className="text-xs font-bold uppercase tracking-wider text-emerald-800">
+              Quota Progress
+            </p>
+            <div className="mt-2 h-2.5 w-full rounded-full bg-emerald-100/70 overflow-hidden">
+              <div
+                className="h-full bg-emerald-600 rounded-full transition-all duration-500"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+            <div className="mt-2 flex items-center justify-between text-xs font-semibold text-emerald-800">
+              <span>{progressPercent}% achieved</span>
+              <span>
+                {formatCurrencyCompact(closedWonRevenue, 1)} / {formatCurrencyCompact(QUOTA_TARGET, 1)}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-auto border-t border-slate-200 pt-4 shrink-0">
           <div className="space-y-2">
             {utilityItems.map((item) => (
               <button

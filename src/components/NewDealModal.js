@@ -1,19 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import Modal from './Modal';
-
-const currencyFormatter = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-  maximumFractionDigits: 0,
-});
-
-function formatCurrencyValue(value) {
-  const number = Number(value);
-  if (Number.isNaN(number)) {
-    return '';
-  }
-  return currencyFormatter.format(number);
-}
+import { formatCurrency } from '../utils/format';
 
 export default function NewDealModal({
   open,
@@ -117,7 +104,7 @@ export default function NewDealModal({
 
     const normalizedSize = Number(dealSize);
     const createdDate = new Date().toISOString();
-    const formattedSize = formatCurrencyValue(normalizedSize);
+    const formattedSize = formatCurrency(normalizedSize);
     const createdName = `${companyName} - ${formattedSize}`;
 
     onCreate({

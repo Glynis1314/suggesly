@@ -1,3 +1,5 @@
+import PropTypes from 'prop-types';
+
 const stageStyles = {
   ASSIGNED: 'bg-emerald-100 text-emerald-700',
   'REACHED OUT': 'bg-cyan-100 text-cyan-700',
@@ -19,3 +21,7 @@ export default function StageBadge({ stage }) {
   const key = stage?.toString().toUpperCase();
   return <span className={`${badgeBaseClasses} ${stageStyles[key] || stageStyles[stage] || 'bg-gray-100 text-gray-700'}`}>{stage}</span>;
 }
+
+StageBadge.propTypes = {
+  stage: PropTypes.string.isRequired,
+};

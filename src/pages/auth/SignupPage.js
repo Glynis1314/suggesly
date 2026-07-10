@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Lock, Mail, User, CheckCircle2 } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, User } from 'lucide-react';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
 import { saveSession } from '../../utils/auth';
@@ -176,9 +176,9 @@ export default function SignupPage() {
             </span>
             <span>
               I agree to the{' '}
-              <a href="#" className="font-medium text-emerald-600 underline">Terms of Service</a>{' '}
+              <a href="/terms" className="font-medium text-emerald-600 underline">Terms of Service</a>{' '}
               and{' '}
-              <a href="#" className="font-medium text-emerald-600 underline">Privacy Policy</a>
+              <a href="/privacy" className="font-medium text-emerald-600 underline">Privacy Policy</a>
             </span>
           </label>
 

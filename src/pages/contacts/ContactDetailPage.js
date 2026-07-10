@@ -3,6 +3,7 @@ import { useContacts } from '../../context/ContactsContext';
 import { useAccounts } from '../../context/AccountsContext';
 import { useDeals } from '../../context/DealsContext';
 import { getAccountId, getContactId } from '../../utils/recordIds';
+import { formatDateLocal, formatCurrency } from '../../utils/format';
 import EditableCell from '../../components/EditableCell';
 import RecordActivityTabs from '../../components/RecordActivityTabs';
 import AssociationList from '../../components/AssociationList';
@@ -12,11 +13,7 @@ import { contactStageOptions } from '../../data/contactsData';
 const ownerOptions = ['Alex Rivera', 'Jane Smith', 'Sarah Jenkins', 'Kevin Malone', 'Michael Chen', 'Olivia Lee'];
 const personaOptions = ['Engineering', 'Marketing', 'Sales'];
 
-function formatDate(value) {
-  if (!value) return '—';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString();
-}
+
 
 export default function ContactDetailPage() {
   const { contactId } = useParams();
@@ -121,7 +118,7 @@ export default function ContactDetailPage() {
               </Field>
               <Field label="Last Contacted Date">
                 <EditableCell type="date" value={contact.lastContactedDate} onSave={save('lastContactedDate')} />
-                <p className="mt-1 text-xs text-slate-400">{formatDate(contact.lastContactedDate)}</p>
+                <p className="mt-1 text-xs text-slate-400">{formatDateLocal(contact.lastContactedDate)}</p>
               </Field>
               <Field label="Next Task">
                 <EditableCell value={contact.nextTask} onSave={save('nextTask')} />
@@ -166,7 +163,7 @@ export default function ContactDetailPage() {
             items={associatedDeals.map((deal) => ({
               href: `/deals/${deal.id}`,
               title: deal.dealName,
-              subtitle: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(deal.dealSize || 0),
+              subtitle: formatCurrency(deal.dealSize || 0),
             }))}
             emptyLabel="No deals associated."
           />

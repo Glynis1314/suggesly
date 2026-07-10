@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import PropTypes from 'prop-types';
 import OwnerAvatar from './OwnerAvatar';
 import StageBadge from './StageBadge';
 
@@ -288,3 +289,10 @@ export default function EditableCell({ value, type = 'text', options = [], onSav
     </div>
   );
 }
+
+EditableCell.propTypes = {
+  value: PropTypes.any,
+  type: PropTypes.string,
+  options: PropTypes.arrayOf(PropTypes.string),
+  onSave: PropTypes.func,
+};

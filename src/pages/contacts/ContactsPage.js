@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { contactStageOptions } from '../../data/contactsData';
 import { accountsRows } from '../../data/accountsData';
@@ -9,6 +9,8 @@ import BulkImportModal from '../../components/BulkImportModal';
 import { useContacts } from '../../context/ContactsContext';
 import { getContactId } from '../../utils/recordIds';
 import { useTableColumns } from '../../utils/useTableColumns';
+import { usePagination } from '../../utils/usePagination';
+import { formatDate } from '../../utils/format';
 
 const contactSampleHeaders = [
   'Contact Name',
@@ -45,8 +47,7 @@ function LinkIcon({ className = 'h-5 w-5' }) {
   );
 }
 
-const totalCount = 12482;
-const pageSize = 5;
+
 
 export default function ContactsPage() {
   const { contacts: rows, createContact, importContacts, updateContact } = useContacts();
@@ -59,7 +60,7 @@ export default function ContactsPage() {
   const [sortKey, setSortKey] = useState(null);
   const [sortDirection, setSortDirection] = useState('asc');
 
-  const [visibleCount, setVisibleCount] = useState(30);
+
 
   const {
     columns,
@@ -81,9 +82,7 @@ export default function ContactsPage() {
     { id: 'notes', label: 'Notes', width: 240 },
   ]);
 
-  useEffect(() => {
-    setVisibleCount(30);
-  }, [selectedStage, selectedOwner, selectedCountry, sortKey, sortDirection]);
+
 
   const ownerOptions = useMemo(
     () => Array.from(new Set(['Me', ...rows.map((row) => row.owner)])),
@@ -200,6 +199,8 @@ export default function ContactsPage() {
     });
   }, [rows, selectedStage, selectedOwner, selectedCountry, sortKey, sortDirection]);
 
+  const { visibleCount, handleScroll, loadMore } = usePagination(sortedAndFiltered, [selectedStage, selectedOwner, selectedCountry, sortKey, sortDirection]);
+
   const handleSort = (key) => {
     if (sortKey === key) {
       setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -263,11 +264,7 @@ export default function ContactsPage() {
               .slice(0, 2)
               .toUpperCase();
             const today = new Date().toISOString().slice(0, 10);
-            const displayDate = new Date().toLocaleDateString('en-US', {
-              month: 'short',
-              day: '2-digit',
-              year: 'numeric',
-            });
+            const displayDate = formatDate(new Date());
             return {
               name,
               initials: initials || '?',
@@ -412,12 +409,7 @@ export default function ContactsPage() {
       <div className="overflow-hidden rounded-2xl border border-slate-300 bg-white w-full">
         <div
           className="max-h-[calc(100vh-26rem)] overflow-y-auto overflow-x-hidden w-full"
-          onScroll={(e) => {
-            const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
-            if (scrollHeight - scrollTop - clientHeight < 150) {
-              setVisibleCount((prev) => Math.min(prev + 30, sortedAndFiltered.length));
-            }
-          }}
+          onScroll={handleScroll}
         >
           <table className="w-full table-fixed">
             <thead className="sticky top-0 z-10 bg-white">
@@ -482,7 +474,7 @@ export default function ContactsPage() {
         <div className="flex items-center gap-2">
           {sortedAndFiltered.length > visibleCount && (
             <button
-              onClick={() => setVisibleCount((prev) => Math.min(prev + 50, sortedAndFiltered.length))}
+              onClick={loadMore}
               className="rounded-full bg-slate-100 hover:bg-slate-200 px-4 py-1 text-slate-700 font-medium text-xs transition"
             >
               Load More
