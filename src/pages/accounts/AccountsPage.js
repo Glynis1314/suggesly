@@ -114,6 +114,10 @@ export default function AccountsPage() {
     { id: 'linkedin', label: 'LinkedIn URL', width: 100 },
   ]);
 
+  const tableWidth = useMemo(() => {
+    return columns.reduce((sum, col) => sum + (col.width || 0), 0) + 124; // 52px checkbox + 72px actions
+  }, [columns]);
+
   const [selectedView, setSelectedView] = useState('All Companies');
 
   const ownerOptions = useMemo(
@@ -461,7 +465,7 @@ export default function AccountsPage() {
         }}
       />
 
-      <div className="mb-4 rounded-2xl border border-slate-300 bg-white p-5">
+      <div className="mb-6 rounded-2xl border border-slate-300 bg-white p-5">
         <div className="flex flex-wrap items-center gap-3" ref={viewRef}>
           <div className="relative">
             <button
@@ -635,10 +639,10 @@ export default function AccountsPage() {
 
       <div className="overflow-hidden rounded-2xl border border-slate-300 bg-white w-full">
         <div
-          className="max-h-[calc(100vh-26rem)] overflow-y-auto overflow-x-hidden w-full"
+          className="max-h-[calc(100vh-26rem)] overflow-y-auto overflow-x-auto w-full"
           onScroll={handleScroll}
         >
-          <table className="w-full table-fixed">
+          <table className="w-full table-fixed" style={{ width: `${tableWidth}px` }}>
             <thead className="sticky top-0 z-10 bg-white">
               <tr className="border-b border-gray-100 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
                 <th className="w-[52px] px-5 py-4">

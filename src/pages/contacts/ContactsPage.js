@@ -82,6 +82,10 @@ export default function ContactsPage() {
     { id: 'notes', label: 'Notes', width: 240 },
   ]);
 
+  const tableWidth = useMemo(() => {
+    return columns.reduce((sum, col) => sum + (col.width || 0), 0);
+  }, [columns]);
+
 
 
   const ownerOptions = useMemo(
@@ -211,7 +215,7 @@ export default function ContactsPage() {
   };
 
   return (
-    <section className="relative p-4 md:p-8">
+    <section className="p-4 md:p-8">
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="text-sm text-slate-500">Accounts <span className="mx-2">&gt;</span> <span className="font-medium text-slate-800">Contacts</span></p>
@@ -408,10 +412,10 @@ export default function ContactsPage() {
 
       <div className="overflow-hidden rounded-2xl border border-slate-300 bg-white w-full">
         <div
-          className="max-h-[calc(100vh-26rem)] overflow-y-auto overflow-x-hidden w-full"
+          className="max-h-[calc(100vh-26rem)] overflow-y-auto overflow-x-auto w-full"
           onScroll={handleScroll}
         >
-          <table className="w-full table-fixed">
+          <table className="w-full table-fixed" style={{ width: `${tableWidth}px` }}>
             <thead className="sticky top-0 z-10 bg-white">
               <tr className="border-b border-gray-100">
                 {columns.map((col, index) => (

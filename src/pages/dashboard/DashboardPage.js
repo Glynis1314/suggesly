@@ -1,11 +1,9 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { formatCurrencyCompact } from '../../utils/format';
 import { useDeals } from '../../context/DealsContext';
 import { useAccounts } from '../../context/AccountsContext';
 import { useContacts } from '../../context/ContactsContext';
-import Avatar from '../../components/Avatar';
-import StageBadge from '../../components/StageBadge';
 import AddDealModal from '../../components/AddDealModal';
 import { getAccountId } from '../../utils/recordIds';
 import { dealStageOptions } from '../../data/dealsData';
@@ -16,8 +14,8 @@ const FUNNEL_STAGE_ORDER = [
   'POC',
   'Proposal',
   'Nurture',
-  'Closed Lost',
   'Closed Won',
+  'Closed Lost',
 ];
 
 const STAGE_COLORS = {
@@ -25,31 +23,183 @@ const STAGE_COLORS = {
   'POC': '#6366f1',          // transitioning blue/indigo
   'Proposal': '#4f46e5',     // rich indigo
   'Nurture': '#f59e0b',      // amber/orange
-  'Closed Lost': '#f43f5e',  // rose
   'Closed Won': '#10b981',   // emerald/green
+  'Closed Lost': '#f43f5e',  // rose/red
 };
+
+const MEETINGS_STAGE_ORDER = [
+  'Meeting Scheduled',
+  'Meeting Completed',
+  'Follow-up Sent',
+  'Converted to Deal',
+  'No-Show',
+];
+
+const MEETINGS_STAGE_COLORS = {
+  'Meeting Scheduled': '#818cf8', // blue/indigo
+  'Meeting Completed': '#4f46e5', // rich indigo
+  'Follow-up Sent': '#f59e0b',    // amber/orange
+  'Converted to Deal': '#10b981', // emerald/green
+  'No-Show': '#f43f5e',           // rose/red
+};
+
+function LogMeetingModal({ open, onClose, companyOptions, onCreate }) {
+  const [company, setCompany] = useState('');
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [title, setTitle] = useState('');
+  const [notes, setNotes] = useState('');
+  const [stage, setStage] = useState('Meeting Scheduled');
+
+  if (!open) return null;
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!company) return;
+    onCreate({
+      company,
+      date,
+      title,
+      notes,
+      stage,
+    });
+    setCompany('');
+    setTitle('');
+    setNotes('');
+    setStage('Meeting Scheduled');
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+      <div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl animate-[fadeInUp_200ms_ease-out]">
+        <h2 className="text-xl font-bold text-slate-900 mb-4">Log New Meeting</h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Company</label>
+            <select
+              value={company}
+              onChange={(e) => setCompany(e.target.value)}
+              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-900 outline-none focus:border-emerald-500"
+              required
+            >
+              <option value="">Select a company</option>
+              {companyOptions.map((opt) => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Meeting Date</label>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-900 outline-none focus:border-emerald-500"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Meeting Title</label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Discovery Call"
+              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-900 outline-none focus:border-emerald-500"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Meeting Stage</label>
+            <select
+              value={stage}
+              onChange={(e) => setStage(e.target.value)}
+              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-900 outline-none focus:border-emerald-500"
+            >
+              <option value="Meeting Scheduled">Meeting Scheduled</option>
+              <option value="Meeting Completed">Meeting Completed</option>
+              <option value="Follow-up Sent">Follow-up Sent</option>
+              <option value="Converted to Deal">Converted to Deal</option>
+              <option value="No-Show">No-Show</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Notes</label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Key discussion points..."
+              rows={3}
+              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-900 outline-none focus:border-emerald-500 resize-none"
+            />
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="rounded-full bg-emerald-600 hover:bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition shadow-sm"
+            >
+              Log Meeting
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 export default function DashboardPage() {
   const { deals, createDeal } = useDeals();
   const { accounts } = useAccounts();
   const { contacts } = useContacts();
 
+  const [activeTab, setActiveTab] = useState('Deals');
   const [showAddDeal, setShowAddDeal] = useState(false);
+  const [showLogMeeting, setShowLogMeeting] = useState(false);
   const [selectedStage, setSelectedStage] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 5;
 
-  // 1. Overall Pipeline Statistics (Total ARR, Total Accounts/Deals)
-  const totalStats = useMemo(() => {
-    const totalARR = deals.reduce((sum, d) => sum + (Number(d.dealSize) || 0), 0);
-    return {
-      totalARR,
-      totalAccounts: deals.length,
-    };
-  }, [deals]);
+  // pre-seed local meetings data for the Meetings tab to feel alive and functional immediately.
+  const [localMeetings, setLocalMeetings] = useState([
+    {
+      company: 'Globex Corp',
+      date: '2026-07-10',
+      title: 'Initial Discovery Call',
+      notes: 'Spoke with CEO about CRM pain points. Very interested in our proposal.',
+      stage: 'Meeting Completed',
+    },
+    {
+      company: 'Initech',
+      date: '2026-07-12',
+      title: 'Demo Presentation',
+      notes: 'Presented slide deck and live sandbox. Next step: security review.',
+      stage: 'Follow-up Sent',
+    },
+    {
+      company: 'Acme Corp',
+      date: '2026-07-11',
+      title: 'Intro Call',
+      notes: 'Scheduled a follow-up demo for next week.',
+      stage: 'Meeting Scheduled',
+    },
+  ]);
 
-  // 2. Compute live funnel data for FunnelChart component
-  const funnelData = useMemo(() => {
+  const handleCreateMeeting = (newMeeting) => {
+    setLocalMeetings((prev) => [newMeeting, ...prev]);
+  };
+
+  const getCompanyIdByName = (name) => {
+    const acc = accounts.find((a) => a.company === name);
+    return acc ? getAccountId(acc) : 'unknown';
+  };
+
+  // 1. Compute Funnel Data for Deals tab
+  const dealsFunnelData = useMemo(() => {
     const counts = {};
     const values = {};
 
@@ -74,58 +224,217 @@ export default function DashboardPage() {
     }));
   }, [deals]);
 
-  // 3. Fallback stage (stage with most deals, or first stage in order)
-  const defaultStage = useMemo(() => {
-    let bestStage = FUNNEL_STAGE_ORDER[0];
-    let maxCount = -1;
+  // 2. Compute Funnel Data for Meetings tab (using deals as proxy + manual logs)
+  const meetingsFunnelData = useMemo(() => {
+    const counts = {
+      'Meeting Scheduled': 0,
+      'Meeting Completed': 0,
+      'Follow-up Sent': 0,
+      'Converted to Deal': 0,
+      'No-Show': 0,
+    };
+    const values = {
+      'Meeting Scheduled': 0,
+      'Meeting Completed': 0,
+      'Follow-up Sent': 0,
+      'Converted to Deal': 0,
+      'No-Show': 0,
+    };
 
-    funnelData.forEach((stage) => {
+    // Proxies from actual deals data
+    deals.forEach((deal) => {
+      const size = Number(deal.dealSize) || 0;
+      counts['Meeting Scheduled']++;
+      values['Meeting Scheduled'] += size;
+
+      if (['POC', 'Proposal', 'Nurture', 'Closed Won'].includes(deal.dealStage)) {
+        counts['Meeting Completed']++;
+        values['Meeting Completed'] += size;
+      }
+      if (['Proposal', 'Nurture', 'Closed Won'].includes(deal.dealStage)) {
+        counts['Follow-up Sent']++;
+        values['Follow-up Sent'] += size;
+      }
+      if (deal.dealStage === 'Closed Won') {
+        counts['Converted to Deal']++;
+        values['Converted to Deal'] += size;
+      }
+      if (deal.dealStage === 'Closed Lost') {
+        counts['No-Show']++;
+        values['No-Show'] += size;
+      }
+    });
+
+    // Add manual local meetings logged by the user
+    localMeetings.forEach((m) => {
+      const deal = deals.find((d) => d.associatedCompany === m.company);
+      const val = deal ? (Number(deal.dealSize) || 0) : 50000;
+
+      if (m.stage === 'Meeting Scheduled') {
+        counts['Meeting Scheduled']++;
+        values['Meeting Scheduled'] += val;
+      } else if (m.stage === 'Meeting Completed') {
+        counts['Meeting Scheduled']++;
+        values['Meeting Scheduled'] += val;
+        counts['Meeting Completed']++;
+        values['Meeting Completed'] += val;
+      } else if (m.stage === 'Follow-up Sent') {
+        counts['Meeting Scheduled']++;
+        values['Meeting Scheduled'] += val;
+        counts['Meeting Completed']++;
+        values['Meeting Completed'] += val;
+        counts['Follow-up Sent']++;
+        values['Follow-up Sent'] += val;
+      } else if (m.stage === 'Converted to Deal') {
+        counts['Meeting Scheduled']++;
+        values['Meeting Scheduled'] += val;
+        counts['Meeting Completed']++;
+        values['Meeting Completed'] += val;
+        counts['Follow-up Sent']++;
+        values['Follow-up Sent'] += val;
+        counts['Converted to Deal']++;
+        values['Converted to Deal'] += val;
+      } else if (m.stage === 'No-Show') {
+        counts['Meeting Scheduled']++;
+        values['Meeting Scheduled'] += val;
+        counts['No-Show']++;
+        values['No-Show'] += val;
+      }
+    });
+
+    return MEETINGS_STAGE_ORDER.map((stage) => ({
+      label: stage,
+      count: counts[stage],
+      value: values[stage],
+      color: MEETINGS_STAGE_COLORS[stage],
+    }));
+  }, [deals, localMeetings]);
+
+  const activeFunnelData = activeTab === 'Deals' ? dealsFunnelData : meetingsFunnelData;
+
+  // 3. Fallback stage
+  const defaultStage = useMemo(() => {
+    let bestStage = activeTab === 'Deals' ? FUNNEL_STAGE_ORDER[0] : MEETINGS_STAGE_ORDER[0];
+    let maxCount = -1;
+    activeFunnelData.forEach((stage) => {
       if (stage.count > maxCount) {
         maxCount = stage.count;
         bestStage = stage.label;
       }
     });
-
     return bestStage;
-  }, [funnelData]);
+  }, [activeFunnelData, activeTab]);
 
   const activeStage = selectedStage || defaultStage;
 
-  // 4. Deals in active stage
-  const dealsInActiveStage = useMemo(() => {
-    return deals.filter((d) => d.dealStage === activeStage);
-  }, [deals, activeStage]);
+  // 4. Compute right panel accounts based on active stage & tab
+  const rightPanelData = useMemo(() => {
+    if (activeTab === 'Deals') {
+      return deals.filter((d) => d.dealStage === activeStage).map((deal) => {
+        const size = Number(deal.dealSize) || 0;
+        const lastAct = deal.lastActivityDate ? new Date(deal.lastActivityDate).getTime() : 0;
+        const daysSinceLastAct = (Date.now() - lastAct) / 86400000;
 
-  // 5. Paginated Accounts sorted by lastActivityDate descending
-  const sortedAccounts = useMemo(() => {
-    return [...accounts].sort((a, b) => {
-      const dateA = a.lastActivityDate ? new Date(a.lastActivityDate).getTime() : 0;
-      const dateB = b.lastActivityDate ? new Date(b.lastActivityDate).getTime() : 0;
-      return dateB - dateA;
-    });
-  }, [accounts]);
+        // Heuristic: VALUABLE if ARR >= $150k, STUCK if inactive > 30 days or Closed Lost, HOT otherwise.
+        let statusPill = 'HOT';
+        let statusColor = 'bg-blue-100 text-blue-700';
+        if (deal.dealStage === 'Closed Lost' || daysSinceLastAct > 30) {
+          statusPill = 'STUCK';
+          statusColor = 'bg-orange-100 text-orange-700';
+        } else if (size >= 150000) {
+          statusPill = 'VALUABLE';
+          statusColor = 'bg-rose-100 text-rose-700';
+        }
 
-  const totalPages = Math.ceil(sortedAccounts.length / pageSize);
-  const paginatedAccounts = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return sortedAccounts.slice(start, start + pageSize);
-  }, [sortedAccounts, currentPage]);
+        let statusLine = deal.nextAction || 'Next step pending';
+        if (deal.dealStage === 'Closed Won') {
+          statusLine = 'Deal successfully closed';
+        } else if (deal.dealStage === 'Closed Lost') {
+          statusLine = `Closed Lost: ${deal.lostReason || 'No reason provided'}`;
+        } else if (deal.lastActivityDate) {
+          statusLine = `Activity: ${new Date(deal.lastActivityDate).toLocaleDateString()}`;
+        }
 
-  // Ensure current page is valid when accounts list updates
-  useEffect(() => {
-    if (currentPage > totalPages && totalPages > 0) {
-      setCurrentPage(totalPages);
+        return {
+          id: deal.id,
+          company: deal.associatedCompany,
+          statusPill,
+          statusColor,
+          statusLine,
+          value: size,
+        };
+      });
+    } else {
+      // Meetings tab right panel list
+      const manuallyLogged = localMeetings.filter((m) => m.stage === activeStage);
+      const qualifyingDeals = deals.filter((deal) => {
+        if (activeStage === 'Meeting Scheduled') return true;
+        if (activeStage === 'Meeting Completed') {
+          return ['POC', 'Proposal', 'Nurture', 'Closed Won'].includes(deal.dealStage);
+        }
+        if (activeStage === 'Follow-up Sent') {
+          return ['Proposal', 'Nurture', 'Closed Won'].includes(deal.dealStage);
+        }
+        if (activeStage === 'Converted to Deal') {
+          return deal.dealStage === 'Closed Won';
+        }
+        if (activeStage === 'No-Show') {
+          return deal.dealStage === 'Closed Lost';
+        }
+        return false;
+      });
+
+      const formattedDeals = qualifyingDeals.map((deal) => {
+        const size = Number(deal.dealSize) || 0;
+        const lastAct = deal.lastActivityDate ? new Date(deal.lastActivityDate).getTime() : 0;
+        const daysSinceLastAct = (Date.now() - lastAct) / 86400000;
+
+        // Heuristic: VALUABLE if ARR >= $150k, STUCK if inactive > 30 days or Closed Lost, HOT otherwise.
+        let statusPill = 'HOT';
+        let statusColor = 'bg-blue-100 text-blue-700';
+        if (deal.dealStage === 'Closed Lost' || daysSinceLastAct > 30) {
+          statusPill = 'STUCK';
+          statusColor = 'bg-orange-100 text-orange-700';
+        } else if (size >= 150000) {
+          statusPill = 'VALUABLE';
+          statusColor = 'bg-rose-100 text-rose-700';
+        }
+
+        let statusLine = deal.nextAction || 'Next step pending';
+        if (deal.dealStage === 'Closed Won') {
+          statusLine = 'Meeting resulted in Closed Won';
+        } else if (deal.dealStage === 'Closed Lost') {
+          statusLine = 'Meeting outcome: Lost';
+        } else if (deal.lastActivityDate) {
+          statusLine = `Meeting completed on ${new Date(deal.lastActivityDate).toLocaleDateString()}`;
+        }
+
+        return {
+          id: deal.id,
+          company: deal.associatedCompany,
+          statusPill,
+          statusColor,
+          statusLine,
+          value: size,
+        };
+      });
+
+      const formattedManual = manuallyLogged.map((m, idx) => ({
+        id: `manual-meeting-${idx}`,
+        company: m.company,
+        statusPill: 'HOT',
+        statusColor: 'bg-blue-100 text-blue-700',
+        statusLine: `${m.title} logged on ${m.date}`,
+        value: 50000,
+      }));
+
+      return [...formattedManual, ...formattedDeals];
     }
-  }, [totalPages, currentPage]);
+  }, [activeTab, activeStage, deals, localMeetings]);
 
-  // Helper to format currency values
-  const formatTotalARR = (value) => formatCurrencyCompact(value, 2);
-  const formatDealSizeCompact = (value) => formatCurrencyCompact(value, 0);
-
-  // Helper to generate initials & color for company avatars
-  const getAccountInitialsAndColor = (account) => {
-    const companyName = account.company || 'U';
-    const init = account.init || companyName.charAt(0).toUpperCase();
+  // Helpers for company initials & colors
+  const getAccountInitialsAndColor = (companyName) => {
+    const init = companyName ? companyName.charAt(0).toUpperCase() : 'U';
     const colors = [
       'bg-emerald-100 text-emerald-700',
       'bg-sky-100 text-sky-700',
@@ -135,280 +444,327 @@ export default function DashboardPage() {
       'bg-slate-100 text-slate-700',
     ];
     const hash = companyName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    const color = account.color || colors[hash % colors.length];
+    const color = colors[hash % colors.length];
     return { init, color };
   };
 
-  // Helper for owner avatars and formatted names
-  const getOwnerInitials = (ownerName) => {
-    if (!ownerName) return '??';
-    return ownerName
-      .split(' ')
-      .slice(0, 2)
-      .map((part) => part[0]?.toUpperCase())
-      .join('');
-  };
+  // 5. Compute bottom Activity & Health table rows
+  const tableRows = useMemo(() => {
+    if (activeTab === 'Deals') {
+      return [...deals].sort((a, b) => {
+        const dateA = a.lastActivityDate ? new Date(a.lastActivityDate).getTime() : 0;
+        const dateB = b.lastActivityDate ? new Date(b.lastActivityDate).getTime() : 0;
+        return dateB - dateA;
+      }).map((deal) => {
+        const lastAct = deal.lastActivityDate ? new Date(deal.lastActivityDate).getTime() : 0;
+        const daysSinceLastAct = (Date.now() - lastAct) / 86400000;
+        const isStuck = deal.dealStage === 'Closed Lost' || daysSinceLastAct > 30;
 
-  const getOwnerFormattedName = (ownerName) => {
-    if (!ownerName) return '—';
-    const parts = ownerName.trim().split(/\s+/);
-    if (parts.length === 1) return parts[0];
-    return `${parts[0]} ${parts[parts.length - 1].charAt(0)}.`;
-  };
+        return {
+          id: deal.id,
+          company: deal.associatedCompany,
+          health: isStuck ? 'Stuck' : 'Forward',
+          remarks: deal.remarks || deal.notes || 'Initial deal staging.',
+          nextStep: deal.nextAction || 'Follow-up Call',
+          dueDate: deal.nextStepDueDate || deal.nextActionDate || 'TBD',
+        };
+      });
+    } else {
+      // Meetings tab table rows
+      const manualRows = localMeetings.map((m, idx) => ({
+        id: `manual-table-${idx}`,
+        company: m.company,
+        health: m.stage === 'No-Show' ? 'Stuck' : 'Forward',
+        remarks: m.notes || `Discussed ${m.title}.`,
+        nextStep: 'Log next communication',
+        dueDate: m.date,
+      }));
 
-  // Helper to generate a relative time string
-  const formatRelativeTime = (dateStr) => {
-    if (!dateStr) return '—';
-    const date = new Date(dateStr);
-    if (isNaN(date.getTime())) return dateStr;
-    const now = new Date();
+      const proxyRows = deals.map((deal) => {
+        const lastAct = deal.lastActivityDate ? new Date(deal.lastActivityDate).getTime() : 0;
+        const daysSinceLastAct = (Date.now() - lastAct) / 86400000;
+        const isStuck = deal.dealStage === 'Closed Lost' || daysSinceLastAct > 30;
 
-    const diffMs = now.getTime() - date.getTime();
-    if (diffMs < 0) {
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    }
-    const diffMins = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        return {
+          id: `proxy-table-${deal.id}`,
+          company: deal.associatedCompany,
+          health: isStuck ? 'Stuck' : 'Forward',
+          remarks: deal.remarks || deal.notes || 'Meeting completed with client.',
+          nextStep: deal.nextAction || 'Action items follow-up',
+          dueDate: deal.nextStepDueDate || deal.nextActionDate || 'TBD',
+        };
+      });
 
-    if (diffMins < 60) {
-      if (diffMins <= 0) return 'Just now';
-      return `${diffMins} ${diffMins === 1 ? 'minute' : 'minutes'} ago`;
+      return [...manualRows, ...proxyRows].slice(0, 15); // Limit proxy + manual rows
     }
-    if (diffHours < 24) {
-      return `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
-    }
-    if (diffDays === 1) {
-      return 'Yesterday';
-    }
-    if (diffDays < 7) {
-      return `${diffDays} days ago`;
-    }
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  };
+  }, [activeTab, deals, localMeetings]);
 
+  const totalARRValue = useMemo(() => {
+    return activeFunnelData.reduce((sum, item) => sum + item.value, 0);
+  }, [activeFunnelData]);
+
+  // DashboardPage utilizes a custom wrapper with max-width/height and internal vertical scroll to accommodate the fixed-height Sales Funnel chart and grid layout.
   return (
     <section className="p-4 md:p-8 max-w-[1600px] mx-auto space-y-6 max-h-[calc(100vh-5rem)] overflow-y-auto w-full">
       {/* 1. Page Header */}
       <div>
-        <div className="text-sm text-slate-400">CRM &gt; Funnel View &gt; Deals Funnel</div>
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mt-1">
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Deals Funnel View</h1>
+        <div className="text-sm text-slate-400">CRM &gt; Funnel View &gt; {activeTab === 'Deals' ? 'Deals Funnel' : 'Meetings Funnel'}</div>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mt-1 mb-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900">
+              {activeTab === 'Deals' ? 'Deals Funnel' : 'Meetings Funnel'}
+            </h1>
+            <p className="text-sm text-slate-500 mt-1">
+              {activeTab === 'Deals'
+                ? 'Visualizing your pipeline health and conversion stages.'
+                : 'Visualizing your meeting scheduling and completion rates.'}
+            </p>
+          </div>
           <div className="flex items-center gap-3">
-            <button className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition shadow-sm">
+            <button className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition shadow-sm flex items-center gap-2">
+              <svg className="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 13.293A1 1 0 013 12.586V4z" />
+              </svg>
               Filters
             </button>
-            <button
-              onClick={() => setShowAddDeal(true)}
-              className="rounded-full bg-emerald-600 hover:bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition shadow-sm"
-            >
-              + New Deal
-            </button>
+            {activeTab === 'Deals' ? (
+              <button
+                onClick={() => setShowAddDeal(true)}
+                className="rounded-full bg-emerald-600 hover:bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition shadow-sm"
+              >
+                + Create Deal
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowLogMeeting(true)}
+                className="rounded-full bg-emerald-600 hover:bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition shadow-sm"
+              >
+                + Log Meeting
+              </button>
+            )}
           </div>
+        </div>
+
+        {/* Tab Switcher - Notion-style segmented pill toggle */}
+        <div className="inline-flex rounded-full bg-slate-100 p-1 gap-1">
+          {['Deals', 'Meetings'].map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => {
+                setActiveTab(tab);
+                setSelectedStage(null);
+              }}
+              className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all duration-150 ${
+                activeTab === tab
+                  ? 'bg-white shadow-sm text-emerald-700'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* 2 & 3. Conversion Funnel & Stage Details Panel Grid */}
+      {/* 2 & 3. Stages Card (65%) & Stage Details (35%) Grid */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Left: Conversion Funnel Card */}
-        <div className="lg:col-span-2 h-[520px] max-h-[520px] rounded-3xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col">
-          <div className="flex items-center justify-between mb-6 shrink-0">
-            <h2 className="text-lg font-bold text-slate-900">Sales Funnel</h2>
-            <div className="flex items-center gap-4 text-sm text-slate-500 font-medium">
-              <span>
-                Total ARR:{' '}
-                <span className="text-slate-900 font-semibold">
-                  {formatTotalARR(totalStats.totalARR)}
-                </span>
+        {/* Left Card: Pipeline Funnel */}
+        <div className="lg:col-span-2 h-[520px] max-h-[520px] rounded-3xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-2 shrink-0">
+            <div className="flex items-center gap-3">
+              <h2 className="text-lg font-bold text-slate-900">
+                {activeTab === 'Deals' ? 'Sales Pipeline Stages' : 'Meeting Pipeline Stages'}
+              </h2>
+              <span className="rounded-full bg-blue-50 text-blue-700 text-xs font-semibold px-3 py-1">
+                ↗ 12% growth vs last month
               </span>
-              <span className="w-1.5 h-1.5 bg-slate-300 rounded-full" />
-              <span>
-                Total Accounts:{' '}
-                <span className="text-slate-900 font-semibold">
-                  {totalStats.totalAccounts}
-                </span>
+            </div>
+            <div className="text-sm text-slate-500 font-medium">
+              Total ARR:{' '}
+              <span className="text-slate-900 font-semibold">
+                {formatCurrencyCompact(totalARRValue, 2)}
               </span>
             </div>
           </div>
 
-          <div className="flex-1 min-h-0 flex items-center justify-center">
+          <div className="flex-1 min-h-0 flex items-center justify-center p-4">
             <FunnelChart
-              data={funnelData}
+              data={activeFunnelData}
               selectedStage={activeStage}
               onSelectStage={setSelectedStage}
+              splitFinalStage={activeTab === 'Deals'}
             />
           </div>
         </div>
 
-        {/* Right: Stage Detail Panel */}
+        {/* Right Card: Stage Details List */}
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col h-[520px] max-h-[520px]">
           <div className="flex-1 min-h-0 overflow-y-auto pr-1">
-            <h2 className="text-lg font-bold text-slate-900 mb-6 sticky top-0 bg-white pb-2 z-10 border-b border-slate-100 shrink-0">
-              {activeStage} ({dealsInActiveStage.length})
+            <h2 className="text-lg font-bold text-slate-900 sticky top-0 bg-white pb-2 z-10 border-b border-slate-100 shrink-0">
+              Accounts in {activeStage}
             </h2>
+            <p className="text-xs text-slate-400 mt-1 mb-4">
+              {rightPanelData.length} {rightPanelData.length === 1 ? 'account' : 'accounts'} requiring action
+            </p>
 
             <div className="space-y-3">
-              {dealsInActiveStage.slice(0, 6).map((deal) => (
-                <div
-                  key={deal.id}
-                  className="flex items-center justify-between py-3 px-4 rounded-2xl border border-slate-100 hover:border-slate-200 transition bg-slate-50/50"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <Avatar
-                      name={deal.associatedCompany}
-                      size="sm"
-                      className="bg-emerald-100 text-emerald-700 font-semibold shrink-0"
-                    />
-                    <div className="min-w-0">
-                      <p className="text-sm font-bold text-slate-900 truncate">
-                        {deal.associatedCompany}
-                      </p>
-                      <p className="text-sm font-semibold text-emerald-600 mt-0.5">
-                        {formatDealSizeCompact(deal.dealSize)} ARR
-                      </p>
+              {rightPanelData.slice(0, 4).map((item) => {
+                const { init, color } = getAccountInitialsAndColor(item.company);
+                return (
+                  <div
+                    key={item.id}
+                    className="flex flex-col p-4 rounded-2xl border border-slate-100 hover:border-slate-200 transition bg-slate-50/50 relative"
+                  >
+                    <div className="flex items-start justify-between gap-3 min-w-0">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-xs font-bold uppercase ${color}`}>
+                          {init}
+                        </div>
+                        <div className="min-w-0 flex flex-col">
+                          <Link
+                            to={`/accounts/${getCompanyIdByName(item.company)}`}
+                            className="text-sm font-bold text-emerald-700 hover:text-emerald-800 hover:underline truncate block"
+                          >
+                            {item.company}
+                          </Link>
+                          <span className="text-[11px] text-slate-500 mt-0.5 truncate block">{item.statusLine}</span>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-1.5 shrink-0">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${item.statusColor}`}>
+                          {item.statusPill}
+                        </span>
+                        <span className="text-xs font-bold text-slate-700">{formatCurrencyCompact(item.value, 0)}</span>
+                      </div>
+                    </div>
+                    <div className="absolute right-3 bottom-3">
+                      <Link
+                        to={activeTab === 'Deals' ? `/deals/${item.id}` : `/accounts/${getCompanyIdByName(item.company)}`}
+                        className="text-slate-400 hover:text-slate-600 transition block p-1"
+                      >
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                        </svg>
+                      </Link>
                     </div>
                   </div>
-                  <button className="text-slate-400 hover:text-slate-600 p-1 font-bold text-lg leading-none rounded">
-                    ...
-                  </button>
-                </div>
-              ))}
+                );
+              })}
 
-              {dealsInActiveStage.length === 0 && (
+              {rightPanelData.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-20 text-slate-400">
                   <svg className="h-10 w-10 text-slate-300 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0a2 2 0 01-2 2H6a2 2 0 01-2-2m16 0V9a2 2 0 00-2-2H6a2 2 0 00-2 2v2m16 4h-2a2 2 0 00-2 2v3m-6-6h-2a2 2 0 00-2 2v3" />
                   </svg>
-                  <p className="text-sm font-medium">No deals in {activeStage}</p>
+                  <p className="text-sm font-medium">No accounts in {activeStage}</p>
                 </div>
               )}
             </div>
           </div>
 
-          {dealsInActiveStage.length > 6 && (
-            <div className="pt-4 border-t border-slate-100 mt-4 text-center shrink-0">
+          {rightPanelData.length > 0 && (
+            <div className="pt-3 border-t border-slate-100 mt-2 shrink-0">
               <Link
-                to="/deals"
-                className="text-xs font-bold text-emerald-700 hover:text-emerald-800 hover:underline"
+                to={activeTab === 'Deals' ? '/deals' : '/accounts'}
+                className="block w-full text-center rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold py-2.5 transition text-sm"
               >
-                View All {dealsInActiveStage.length} in {activeStage}
+                View all {rightPanelData.length} accounts
               </Link>
             </div>
           )}
         </div>
       </div>
 
-      {/* 4. Recent Company/Account Activity Table */}
+      {/* 4. Activity & Health Table (Full Width) */}
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-slate-900">Recent Activity</h2>
-          <div className="flex items-center gap-2">
-            <button className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-800 transition" title="Export">
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-            </button>
-            <button className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-800 transition">
-              <span className="font-bold text-lg leading-none">...</span>
-            </button>
+          <h2 className="text-lg font-bold text-slate-900">
+            {activeTab === 'Deals' ? 'Deal Activity & Health' : 'Meeting Activity & Health'}
+          </h2>
+          <div className="flex items-center gap-4 text-xs font-semibold text-slate-500">
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500" />
+              Moving Forward
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block w-2.5 h-2.5 rounded-full bg-rose-500" />
+              Stuck
+            </span>
           </div>
         </div>
 
         <div className="overflow-hidden rounded-2xl border border-slate-300 bg-white w-full">
-          <div className="overflow-x-auto w-full">
-            <table className="w-full text-left border-collapse min-w-[700px]">
-              <thead className="sticky top-0 z-10 bg-white">
-                <tr className="border-b border-gray-100 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 bg-slate-50/50">
-                  <th className="px-5 py-4">Account Name</th>
-                  <th className="px-5 py-4">Owner</th>
-                  <th className="px-5 py-4">Location</th>
-                  <th className="px-5 py-4">Stage</th>
-                  <th className="px-5 py-4">Last Activity</th>
-                  <th className="px-5 py-4">Action</th>
+          <div className="max-h-[360px] overflow-y-auto overflow-x-auto w-full">
+            <table className="w-full text-left border-collapse min-w-[800px] table-fixed">
+              <thead className="sticky top-0 z-10 bg-slate-50">
+                <tr className="border-b border-slate-200 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 bg-slate-50/70 backdrop-blur-sm">
+                  <th className="px-5 py-4" style={{ width: '22%' }}>Account Name</th>
+                  <th className="px-5 py-4" style={{ width: '18%' }}>Health</th>
+                  <th className="px-5 py-4" style={{ width: '32%' }}>Remarks</th>
+                  <th className="px-5 py-4" style={{ width: '22%' }}>Next Steps</th>
+                  <th className="px-5 py-4 text-right" style={{ width: '6%' }}>Action</th>
                 </tr>
               </thead>
               <tbody>
-                {paginatedAccounts.map((account) => {
-                  const { init, color } = getAccountInitialsAndColor(account);
+                {tableRows.map((row) => {
+                  const { init, color } = getAccountInitialsAndColor(row.company);
                   return (
-                    <tr key={getAccountId(account)} className="border-b border-slate-200 bg-white hover:bg-slate-50 transition-colors text-sm">
+                    <tr key={row.id} className="border-b border-slate-100 bg-white hover:bg-slate-50 transition-colors text-sm">
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
-                          <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-semibold uppercase ${color}`}>
+                          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold uppercase ${color}`}>
                             {init}
                           </div>
                           <span className="font-bold text-slate-900 truncate">
-                            {account.company}
+                            {row.company}
                           </span>
                         </div>
                       </td>
                       <td className="px-5 py-4">
-                        <div className="flex items-center gap-2">
-                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-200 text-[10px] font-bold text-slate-600">
-                            {getOwnerInitials(account.owner)}
-                          </div>
-                          <span className="text-slate-700 font-medium truncate">
-                            {getOwnerFormattedName(account.owner)}
+                        {row.health === 'Forward' ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/50">
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                            </svg>
+                            Moving forward
                           </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200/50">
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            Deal Stuck
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-5 py-4 text-slate-600 italic">
+                        &ldquo;{row.remarks.length > 55 ? `${row.remarks.slice(0, 52)}...` : row.remarks}&rdquo;
+                      </td>
+                      <td className="px-5 py-4">
+                        <div className="flex flex-col">
+                          <span className="font-bold text-slate-800 truncate">{row.nextStep}</span>
+                          <span className="text-xs text-slate-400 mt-0.5">Due {row.dueDate}</span>
                         </div>
                       </td>
-                      <td className="px-5 py-4 text-slate-600">
-                        {account.city && account.country
-                          ? `${account.city}, ${account.country}`
-                          : account.city || account.country || '—'}
-                      </td>
-                      <td className="px-5 py-4">
-                        <StageBadge stage={account.stage} />
-                      </td>
-                      <td className="px-5 py-4 text-slate-500">
-                        {formatRelativeTime(account.lastActivityDate)}
-                      </td>
-                      <td className="px-5 py-4">
-                        <Link
-                          to={`/accounts/${getAccountId(account)}`}
-                          className="text-xs font-bold text-emerald-700 hover:text-emerald-800 hover:underline transition"
-                        >
-                          View Profile
-                        </Link>
+                      <td className="px-5 py-4 text-right">
+                        <button className="text-slate-400 hover:text-slate-700 p-1 font-bold text-lg leading-none rounded">
+                          &bull;&bull;&bull;
+                        </button>
                       </td>
                     </tr>
                   );
                 })}
+
+                {tableRows.length === 0 && (
+                  <tr>
+                    <td colSpan="5" className="px-5 py-12 text-center text-slate-400">
+                      No activity or health details available.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
-          </div>
-        </div>
-
-        {/* Footer Pagination */}
-        <div className="flex items-center justify-between pt-3 border-t border-slate-100 text-xs text-slate-500">
-          <div>
-            Showing{' '}
-            <span className="font-semibold text-slate-800">
-              {Math.min(sortedAccounts.length, (currentPage - 1) * pageSize + 1)}
-            </span>{' '}
-            to{' '}
-            <span className="font-semibold text-slate-800">
-              {Math.min(sortedAccounts.length, currentPage * pageSize)}
-            </span>{' '}
-            of{' '}
-            <span className="font-semibold text-slate-800">{sortedAccounts.length}</span>{' '}
-            companies
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-              disabled={currentPage === 1}
-              className="px-3.5 py-1.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white text-slate-700 font-semibold transition"
-            >
-              Previous
-            </button>
-            <button
-              onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-              disabled={currentPage === totalPages || totalPages === 0}
-              className="px-3.5 py-1.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white text-slate-700 font-semibold transition"
-            >
-              Next
-            </button>
           </div>
         </div>
       </div>
@@ -423,6 +779,13 @@ export default function DashboardPage() {
           createDeal(newDeal);
           setShowAddDeal(false);
         }}
+      />
+
+      <LogMeetingModal
+        open={showLogMeeting}
+        onClose={() => setShowLogMeeting(false)}
+        companyOptions={accounts.map((row) => row.company)}
+        onCreate={handleCreateMeeting}
       />
     </section>
   );

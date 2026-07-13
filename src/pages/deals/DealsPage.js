@@ -111,6 +111,10 @@ export default function DealsPage() {
     { id: 'upcomingTask', label: 'Upcoming Task', width: 200 },
   ]);
 
+  const tableWidth = useMemo(() => {
+    return columns.reduce((sum, col) => sum + (col.width || 0), 0);
+  }, [columns]);
+
 
 
   const ownerOptions = useMemo(
@@ -463,7 +467,7 @@ export default function DealsPage() {
         }}
       />
 
-      <div className="mb-4 rounded-2xl border border-slate-300 bg-white p-5">
+      <div className="mb-6 rounded-2xl border border-slate-300 bg-white p-5">
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative" ref={activeDropdown === 'View' ? dropdownRef : null}>
             <button
@@ -826,10 +830,10 @@ export default function DealsPage() {
 
       <div className="overflow-hidden rounded-2xl border border-slate-300 bg-white w-full">
         <div
-          className="max-h-[calc(100vh-26rem)] overflow-y-auto overflow-x-hidden w-full"
+          className="max-h-[calc(100vh-26rem)] overflow-y-auto overflow-x-auto w-full"
           onScroll={handleScroll}
         >
-          <table className="w-full table-fixed">
+          <table className="w-full table-fixed" style={{ width: `${tableWidth}px` }}>
             <thead className="sticky top-0 z-10 bg-gray-50">
               <tr className="border-b border-gray-100">
                 {columns.map((col, index) => (
