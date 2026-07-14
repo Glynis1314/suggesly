@@ -126,7 +126,7 @@ export default function ProfilePage() {
     : 'Jan 2026';
 
   return (
-    <section className="p-4 md:p-8">
+    <section className="w-full space-y-6">
       {/* Banner */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800 px-6 pb-16 pt-10 sm:px-10">
         <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-white/10" />

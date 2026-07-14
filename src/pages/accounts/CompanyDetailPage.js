@@ -30,7 +30,7 @@ export default function CompanyDetailPage() {
 
   if (!account) {
     return (
-      <section className="p-4 md:p-8">
+      <section className="w-full space-y-6">
         <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center">
           <p className="text-2xl font-semibold text-slate-900">Company not found</p>
           <p className="mt-3 text-slate-500">The company you are looking for does not exist.</p>
@@ -64,7 +64,7 @@ export default function CompanyDetailPage() {
   ];
 
   return (
-    <section className="p-4 md:p-8">
+    <section className="w-full space-y-6">
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <button

@@ -215,7 +215,7 @@ export default function ContactsPage() {
   };
 
   return (
-    <section className="p-4 md:p-8">
+    <section className="w-full space-y-6">
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="text-sm text-slate-500">Accounts <span className="mx-2">&gt;</span> <span className="font-medium text-slate-800">Contacts</span></p>

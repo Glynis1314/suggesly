@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import PropTypes from 'prop-types';
 
 function SparkleIcon({ className = 'h-4 w-4' }) {
   return (
@@ -24,20 +25,33 @@ export default function AISummaryCard({ summary, onRegenerate }) {
   };
 
   return (
-    <div className="rounded-3xl border border-emerald-100 bg-emerald-50/60 p-5">
-      <div className="flex items-center gap-2 text-emerald-700">
-        <SparkleIcon />
-        <p className="text-sm font-semibold uppercase tracking-wide">AI Summary</p>
+    <div className="rounded-2xl border border-brand-100/80 bg-brand-50/50 p-6 shadow-2xs transition-all duration-150">
+      <div className="flex items-center gap-2 text-brand-700">
+        <SparkleIcon className="h-4.5 w-4.5" />
+        <p className="text-xs font-bold uppercase tracking-wider">AI Summary</p>
       </div>
-      <p className="mt-3 text-sm leading-relaxed text-slate-700">{text || 'No notes yet to summarize.'}</p>
+      <p className="mt-3 text-sm leading-relaxed text-text-secondary">{text || 'No notes yet to summarize.'}</p>
       <button
         type="button"
         onClick={handleRegenerate}
         disabled={loading}
-        className="mt-4 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-60"
+        className="mt-4 inline-flex items-center gap-2 rounded-full border border-brand-200 bg-surface-card px-3.5 py-1.5 text-xs font-semibold text-brand-700 transition hover:bg-brand-50 hover:border-brand-300 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
       >
-        {loading ? 'Regenerating…' : 'Regenerate Summary'}
+        {loading ? (
+          <>
+            <span className="h-3 w-3 animate-spin rounded-full border border-brand-700 border-t-transparent" aria-hidden="true" />
+            <span>Regenerating…</span>
+          </>
+        ) : (
+          'Regenerate Summary'
+        )}
       </button>
     </div>
   );
 }
+
+AISummaryCard.propTypes = {
+  summary: PropTypes.string,
+  onRegenerate: PropTypes.func,
+};
+

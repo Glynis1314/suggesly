@@ -3,7 +3,7 @@ import { useDeals } from '../context/DealsContext';
 import { formatCurrencyCompact } from '../utils/format';
 
 function NavIcon({ type, active }) {
-  const iconClassName = `h-5 w-5 ${active ? 'text-emerald-700' : 'text-slate-500'}`;
+  const iconClassName = `h-5 w-5 ${active ? 'text-brand-700' : 'text-text-secondary group-hover:text-text-primary'}`;
 
   switch (type) {
     case 'dashboard':
@@ -106,15 +106,13 @@ export default function SideDrawer({
       .reduce((sum, d) => sum + (Number(d.dealSize) || 0), 0);
   }, [deals]);
 
-  const QUOTA_TARGET = 2400000; // Placeholder target: $2.4M (real target field/setting coming soon)
+  const QUOTA_TARGET = 2400000; // Quota target $2.4M
   const progressPercent = Math.min(100, Math.round((closedWonRevenue / QUOTA_TARGET) * 100));
-
-
 
   return (
     <>
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-slate-200 bg-white p-5 transition-transform lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-surface-border bg-surface-card p-5 transition-transform duration-200 ease-in-out lg:static lg:translate-x-0 ${
           drawerOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -127,9 +125,8 @@ export default function SideDrawer({
             />
 
             <div>
-              <p className="text-2xl font-bold text-emerald-700">Suggesly</p>
-
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+              <p className="text-2xl font-bold text-brand-600">Suggesly</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-text-muted">
                 Sales Simplified
               </p>
             </div>
@@ -138,7 +135,7 @@ export default function SideDrawer({
 
         {/* Scrollable navigation and quota progress container */}
         <div className="flex-1 overflow-y-auto space-y-6 pr-1 min-h-0">
-          <nav className="space-y-2">
+          <nav className="space-y-1">
             {navItems.map((item) => {
               const active = item.label === activeTab;
 
@@ -149,8 +146,10 @@ export default function SideDrawer({
                     setActiveTab(item.label);
                     onClose();
                   }}
-                  className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-lg font-medium transition ${
-                    active ? 'bg-emerald-50 text-emerald-700' : 'text-slate-700 hover:bg-slate-100'
+                  className={`group flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-sm font-semibold transition-all duration-150 ${
+                    active
+                      ? 'bg-brand-50 text-brand-700'
+                      : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary'
                   }`}
                 >
                   <NavIcon type={item.icon} active={active} />
@@ -161,17 +160,17 @@ export default function SideDrawer({
           </nav>
 
           {/* Quota Progress Widget */}
-          <div className="rounded-xl bg-emerald-50 p-4 border border-emerald-100 shrink-0">
-            <p className="text-xs font-bold uppercase tracking-wider text-emerald-800">
+          <div className="rounded-xl bg-brand-50 p-4 border border-brand-100 shrink-0">
+            <p className="text-xs font-bold uppercase tracking-wider text-brand-800">
               Quota Progress
             </p>
-            <div className="mt-2 h-2.5 w-full rounded-full bg-emerald-100/70 overflow-hidden">
+            <div className="mt-2.5 h-2 w-full rounded-full bg-brand-100 overflow-hidden">
               <div
-                className="h-full bg-emerald-600 rounded-full transition-all duration-500"
+                className="h-full bg-brand-600 rounded-full transition-all duration-500"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
-            <div className="mt-2 flex items-center justify-between text-xs font-semibold text-emerald-800">
+            <div className="mt-2 flex items-center justify-between text-xs font-semibold text-brand-800">
               <span>{progressPercent}% achieved</span>
               <span>
                 {formatCurrencyCompact(closedWonRevenue, 1)} / {formatCurrencyCompact(QUOTA_TARGET, 1)}
@@ -180,13 +179,13 @@ export default function SideDrawer({
           </div>
         </div>
 
-        <div className="mt-auto border-t border-slate-200 pt-4 shrink-0">
-          <div className="space-y-2">
+        <div className="mt-auto border-t border-surface-border pt-4 shrink-0">
+          <div className="space-y-1">
             {utilityItems.map((item) => (
               <button
                 key={item.label}
                 type="button"
-                className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-lg font-medium text-slate-700 transition hover:bg-slate-100"
+                className="group flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-sm font-semibold text-text-secondary transition-all duration-150 hover:bg-surface-hover hover:text-text-primary"
               >
                 <NavIcon type={item.icon} active={false} />
                 <span>{item.label}</span>
@@ -198,7 +197,7 @@ export default function SideDrawer({
 
       {drawerOpen && (
         <button
-          className="fixed inset-0 z-30 bg-black/30 lg:hidden"
+          className="fixed inset-0 z-30 bg-text-primary/20 backdrop-blur-xs lg:hidden"
           onClick={onClose}
           aria-label="Close navigation drawer"
         />
@@ -206,3 +205,4 @@ export default function SideDrawer({
     </>
   );
 }
+

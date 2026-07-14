@@ -503,9 +503,8 @@ export default function DashboardPage() {
     return activeFunnelData.reduce((sum, item) => sum + item.value, 0);
   }, [activeFunnelData]);
 
-  // DashboardPage utilizes a custom wrapper with max-width/height and internal vertical scroll to accommodate the fixed-height Sales Funnel chart and grid layout.
   return (
-    <section className="p-4 md:p-8 max-w-[1600px] mx-auto space-y-6 max-h-[calc(100vh-5rem)] overflow-y-auto w-full">
+    <section className="space-y-6 w-full">
       {/* 1. Page Header */}
       <div>
         <div className="text-sm text-slate-400">CRM &gt; Funnel View &gt; {activeTab === 'Deals' ? 'Deals Funnel' : 'Meetings Funnel'}</div>
