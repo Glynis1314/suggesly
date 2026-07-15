@@ -32,6 +32,119 @@ const companySampleHeaders = [
   'LinkedIn URL',
 ];
 
+const companySampleData = [
+  {
+    'Company name': 'CloudSphere AI',
+    'Owner': 'Ritik Rathod',
+    'Source': 'Linkedin',
+    'Priority': 'P0',
+    'Stage': 'Assigned',
+    'Country': 'India',
+    'City': 'Mumbai',
+    'Employee Size': '01-Oct',
+    'Linkedin URL': 'https://www.linkedin.com/company/cloudsphere?originalSubdomain=in'
+  },
+  {
+    'Company name': 'FinEdge Technologies',
+    'Owner': 'Ankit Sharma',
+    'Source': 'Reference',
+    'Priority': 'P1',
+    'Stage': 'Reached Out',
+    'Country': 'Pakistan',
+    'City': 'Lahore',
+    'Employee Size': 'Nov-50',
+    'Linkedin URL': 'https://www.linkedin.com/company/finedge-official?originalSubdomain=in'
+  },
+  {
+    'Company name': 'MarketFlow Labs',
+    'Owner': 'Riya Mehta',
+    'Source': 'Custom',
+    'Priority': 'P2',
+    'Stage': 'Engaged',
+    'Country': 'China',
+    'City': 'Beijing',
+    'Employee Size': '51-200',
+    'Linkedin URL': 'https://www.linkedin.com/company/marketflow?originalSubdomain=uk'
+  },
+  {
+    'Company name': 'HealthSync Systems',
+    'Owner': 'Arjun Patel',
+    'Source': 'Linkedin',
+    'Priority': 'P0',
+    'Stage': 'Nurture',
+    'Country': 'Nepal',
+    'City': 'Kathmandu',
+    'Employee Size': '201-500',
+    'Linkedin URL': 'https://www.linkedin.com/company/healthsynclive'
+  },
+  {
+    'Company name': 'EduSphere Technologies',
+    'Owner': 'Sneha Kapoor',
+    'Source': 'Reference',
+    'Priority': 'P1',
+    'Stage': 'Demo Done',
+    'Country': 'USA',
+    'City': 'New York',
+    'Employee Size': '501-1,000',
+    'Linkedin URL': 'https://www.linkedin.com/company/eduspheretechnologies?originalSubdomain=in'
+  },
+  {
+    'Company name': 'RetailCore Inc',
+    'Owner': 'Rahul Verma',
+    'Source': 'Custom',
+    'Priority': 'P2',
+    'Stage': 'Dropped',
+    'Country': 'UAE ',
+    'City': 'Abu Dhabi',
+    'Employee Size': '1,001-5,000',
+    'Linkedin URL': 'https://www.linkedin.com/company/retailcore?originalSubdomain=in'
+  },
+  {
+    'Company name': 'DataWave Analytics',
+    'Owner': 'Priya Nair',
+    'Source': 'Linkedin',
+    'Priority': 'P0',
+    'Stage': 'Not Interested',
+    'Country': 'Indonesia',
+    'City': 'Jakarta',
+    'Employee Size': '5,001-10,000',
+    'Linkedin URL': 'https://www.linkedin.com/company/dataweave?originalSubdomain=in'
+  },
+  {
+    'Company name': 'NextGen Commerce',
+    'Owner': 'Karan Malhotra',
+    'Source': 'Linkedin',
+    'Priority': 'P1',
+    'Stage': 'Demo Done',
+    'Country': 'Thailand',
+    'City': 'Bangkok',
+    'Employee Size': '10,001+',
+    'Linkedin URL': 'https://www.linkedin.com/newsletters/next-gen-commerce-7474712470301970433'
+  },
+  {
+    'Company name': 'Visionary AI Labs',
+    'Owner': 'Neha Joshi',
+    'Source': 'Reference',
+    'Priority': 'P2',
+    'Stage': 'Dropped',
+    'Country': 'Singapore',
+    'City': 'Singapore',
+    'Employee Size': '01-Oct',
+    'Linkedin URL': 'https://www.linkedin.com/company/visionariesai?originalSubdomain=in'
+  },
+  {
+    'Company name': 'Coefficient ',
+    'Owner': 'Vikram Singh',
+    'Source': 'Custom',
+    'Priority': 'P0',
+    'Stage': 'Not Interested',
+    'Country': 'Malaysia',
+    'City': 'Kuala Lumpur',
+    'Employee Size': 'Nov-50',
+    'Linkedin URL': 'https://www.linkedin.com/company/coefficient-live-data-in-google-sheets-excel'
+  }
+];
+
 const viewOptions = ['All Companies', 'My Companies', 'Recently Updated'];
 const propertyOptions = [
   { key: 'company', label: 'Company Name', type: 'text' },
@@ -438,6 +551,7 @@ export default function AccountsPage() {
         entityLabel="company"
         entityLabelPlural="companies"
         sampleHeaders={companySampleHeaders}
+        customSampleData={companySampleData}
         requiredFields={['Company Name', 'Owner', 'Stage']}
         onImport={(importedRows) => {
           const mapped = importedRows.map((row, index) => ({

@@ -17,7 +17,8 @@
     "react-dom": "^19.2.0",
     "react-router-dom": "^6.16.0",
     "react-scripts": "5.0.1",
-    "recharts": "^3.9.2"
+    "recharts": "^3.9.2",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",
@@ -25,7 +26,7 @@
   },
   "scripts": {
     "start": "npm run frontend",
-    "frontend": "set PORT=3001 && react-scripts start",
+    "frontend": "set PORT=3001&& react-scripts start",
     "backend": "node backend/src/server.js",
     "backend:dev": "nodemon backend/src/server.js",
     "dev": "concurrently \"npm run frontend\" \"npm run backend:dev\"",
