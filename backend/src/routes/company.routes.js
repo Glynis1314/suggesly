@@ -1,7 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const companyService = require('../services/company.service');
-const { sendSuccess, sendError } = require('../views/account.view');
+const { sendSuccess, sendError } = require('../views/response.view');
 
 const router = express.Router();
 

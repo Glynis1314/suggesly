@@ -1,5 +1,5 @@
 const express = require('express');
-const accountRoutes = require('./routes/account.routes');
+
 const authRoutes = require('./routes/auth.routes');
 const companyRoutes = require('./routes/company.routes');
 const contactRoutes = require('./routes/contact.routes');
@@ -24,7 +24,7 @@ app.get('/health', (_req, res) => {
   res.json({ success: true, message: 'Backend is running' });
 });
 
-app.use('/api/accounts', accountRoutes);
+
 app.use('/api/auth', authRoutes);
 app.use('/api/companies', companyRoutes);
 app.use('/api/contacts', contactRoutes);
