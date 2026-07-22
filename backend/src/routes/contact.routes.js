@@ -11,6 +11,15 @@ const router = createCrudRouter('contact', contactService, (router) => {
       return sendError(res, 500, error.message);
     }
   });
+
+  router.post('/bulk-import', async (req, res) => {
+    try {
+      const summary = await contactService.bulkImportContacts(req.body);
+      return sendSuccess(res, 200, summary);
+    } catch (error) {
+      return sendError(res, 500, error.message);
+    }
+  });
 });
 
 module.exports = router;

@@ -3,13 +3,14 @@ const mongoose = require('mongoose');
 const dealSchema = new mongoose.Schema({
   dealName: { type: String, required: true, trim: true },
   dealSize: { type: Number, default: 0 },
-  dealOwner: { type: String, trim: true, default: '' },
+  currency: { type: String, required: true, default: 'USD' },
+  dealOwner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   dealStage: { type: String, trim: true, default: '' },
   dealCreatedDate: { type: String, default: '' },
   lastActivityDate: { type: String, default: '' },
   remarks: { type: String, trim: true, default: '' },
-  associatedCompany: { type: String, trim: true, default: '' }, // Reference ID or plain text
-  primaryContact: { type: String, trim: true, default: '' }, // Reference ID or plain text
+  associatedCompany: { type: mongoose.Schema.Types.ObjectId, ref: 'Company', default: null },
+  primaryContact: { type: mongoose.Schema.Types.ObjectId, ref: 'Contact', default: null },
   associatedContacts: { type: [String], default: [] },
   expectedCloseDate: { type: String, default: '' },
   dealProbability: { type: Number, default: 0 },

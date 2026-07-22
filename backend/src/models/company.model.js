@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const companySchema = new mongoose.Schema({
   company: { type: String, required: true, trim: true },
   site: { type: String, trim: true, default: '' },
-  owner: { type: String, trim: true, default: '' },
+  owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   source: { type: [String], default: [] },
   priority: { type: String, trim: true, default: '' },
   stage: { type: String, trim: true, default: '' },
