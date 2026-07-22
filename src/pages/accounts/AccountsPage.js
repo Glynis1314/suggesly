@@ -124,10 +124,10 @@ export default function AccountsPage() {
             id: c._id || c.id,
             createdDate: c.createdAt
               ? new Date(c.createdAt).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: '2-digit',
-                  year: 'numeric',
-                })
+                month: 'short',
+                day: '2-digit',
+                year: 'numeric',
+              })
               : c.createdDate || '',
           }));
           setCompanies(mapped);
@@ -161,10 +161,10 @@ export default function AccountsPage() {
             id: created._id || created.id,
             createdDate: created.createdAt
               ? new Date(created.createdAt).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: '2-digit',
-                  year: 'numeric',
-                })
+                month: 'short',
+                day: '2-digit',
+                year: 'numeric',
+              })
               : created.createdDate || '',
           },
           ...prev,
@@ -186,16 +186,16 @@ export default function AccountsPage() {
           prev.map((c) =>
             c.id === id
               ? {
-                  ...updated,
-                  id: updated._id || updated.id,
-                  createdDate: updated.createdAt
-                    ? new Date(updated.createdAt).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: '2-digit',
-                        year: 'numeric',
-                      })
-                    : updated.createdDate || '',
-                }
+                ...updated,
+                id: updated._id || updated.id,
+                createdDate: updated.createdAt
+                  ? new Date(updated.createdAt).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: '2-digit',
+                    year: 'numeric',
+                  })
+                  : updated.createdDate || '',
+              }
               : c
           )
         );
@@ -218,10 +218,10 @@ export default function AccountsPage() {
           id: c._id || c.id,
           createdDate: c.createdAt
             ? new Date(c.createdAt).toLocaleDateString('en-US', {
-                month: 'short',
-                day: '2-digit',
-                year: 'numeric',
-              })
+              month: 'short',
+              day: '2-digit',
+              year: 'numeric',
+            })
             : c.createdDate || '',
         };
       });
@@ -289,8 +289,8 @@ export default function AccountsPage() {
         selectedView === 'All Companies'
           ? true
           : selectedView === 'My Companies'
-          ? row.owner === currentUser
-          : parseDate(row.lastActivityDate) >= Date.now() - 14 * 86_400_000;
+            ? row.owner === currentUser
+            : parseDate(row.lastActivityDate) >= Date.now() - 14 * 86_400_000;
 
       if (!viewMatch) {
         return false;
