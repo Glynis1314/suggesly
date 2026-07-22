@@ -1,53 +1,40 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { contactStageOptions } from '../../constants/options';
 import StatCard from '../../components/StatCard';
-import EditableCell from '../../components/EditableCell';
 import AddContactModal from '../../components/AddContactModal';
 import BulkImportModal from '../../components/BulkImportModal';
+import { contactStageOptions } from '../../constants/options';
+import { getContacts, createContact as createContactApi, updateContact as updateContactApi } from '../../services/contactApi';
+import { getCompanies } from '../../services/companyApi';
 import { getContactId } from '../../utils/recordIds';
 import { useTableColumns } from '../../utils/useTableColumns';
 import { usePagination } from '../../utils/usePagination';
-import { formatDate } from '../../utils/format';
-import { getContacts, createContact as createContactApi, updateContact as updateContactApi } from '../../services/contactApi';
-import { getCompanies } from '../../services/companyApi';
+import ContactsFilterBar from './ContactsFilterBar';
+import ContactsTable from './ContactsTable';
 
 const contactSampleHeaders = [
   'Contact Name',
-  'Contact Owner',
   'Associated Company Name',
-  'Contact Job Title',
   'Contact Email',
   'Contact Phone Number',
-  'Contact LinkedIn',
-  'Contact Stage',
   'Contact Country',
   'Contact City',
+  'Contact Owner',
+  'Contact Job Title',
+  'Contact LinkedIn',
+  'Contact Stage',
   'Notes',
   'Next Task',
   'Persona/Department',
   'Last Contacted Date',
 ];
 
-function FilterIcon({ className = 'h-5 w-5' }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className}>
-      <path d="M4 4h16l-6 8v6l-4 3V12L4 4z" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function LinkIcon({ className = 'h-5 w-5' }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className}>
-      <path d="M15 7h3a5 5 0 0 1 0 10h-3" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M9 17H6a5 5 0 0 1 0-10h3" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M8 12h8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-
+const formatDate = (date) => {
+  return new Date(date).toLocaleDateString('en-US', {
+    month: 'short',
+    day: '2-digit',
+    year: 'numeric',
+  });
+};
 
 export default function ContactsPage() {
   const [contacts, setContacts] = useState([]);
@@ -55,14 +42,15 @@ export default function ContactsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const rows = contacts;
-
   const [showAddContact, setShowAddContact] = useState(false);
   const [showBulkImport, setShowBulkImport] = useState(false);
+
+  // Filters State
   const [selectedStage, setSelectedStage] = useState('All');
   const [selectedOwner, setSelectedOwner] = useState('Me');
   const [selectedCountry, setSelectedCountry] = useState('Any');
-  const [openDropdown, setOpenDropdown] = useState(null);
+
+  // Sorting
   const [sortKey, setSortKey] = useState(null);
   const [sortDirection, setSortDirection] = useState('asc');
 
@@ -73,17 +61,21 @@ export default function ContactsPage() {
         setLoading(true);
         const [contactsRes, compsRes] = await Promise.all([
           getContacts(),
-          getCompanies()
+          getCompanies(),
         ]);
         if (isMounted) {
           const mapped = (contactsRes.data?.data || []).map((c) => ({
             ...c,
             id: c._id || c.id,
-            created: c.createdAt ? new Date(c.createdAt).toLocaleDateString('en-US', {
-              month: 'short',
-              day: '2-digit',
-              year: 'numeric'
-            }) : (c.created || ''),
+            initials: String(c.name || '?')
+              .trim()
+              .split(/\s+/)
+              .map((part) => part[0])
+              .join('')
+              .slice(0, 2)
+              .toUpperCase(),
+            created: c.createdAt ? formatDate(c.createdAt) : c.created || '',
+            activity: c.updatedAt ? formatDate(c.updatedAt) : c.activity || '',
           }));
           setContacts(mapped);
           setRawCompanies(compsRes.data?.data || []);
@@ -91,7 +83,7 @@ export default function ContactsPage() {
         }
       } catch (err) {
         if (isMounted) {
-          setError('Failed to fetch contacts.');
+          setError('Failed to load contacts.');
           console.error(err);
         }
       } finally {
@@ -101,7 +93,9 @@ export default function ContactsPage() {
       }
     };
     fetchContactsData();
-    return () => { isMounted = false; };
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const createContact = async (newContact) => {
@@ -113,11 +107,15 @@ export default function ContactsPage() {
           {
             ...created,
             id: created._id || created.id,
-            created: created.createdAt ? new Date(created.createdAt).toLocaleDateString('en-US', {
-              month: 'short',
-              day: '2-digit',
-              year: 'numeric'
-            }) : (created.created || ''),
+            initials: String(created.name || '?')
+              .trim()
+              .split(/\s+/)
+              .map((part) => part[0])
+              .join('')
+              .slice(0, 2)
+              .toUpperCase(),
+            created: created.createdAt ? formatDate(created.createdAt) : created.created || '',
+            activity: created.updatedAt ? formatDate(created.updatedAt) : created.activity || '',
           },
           ...prev,
         ]);
@@ -136,15 +134,19 @@ export default function ContactsPage() {
       if (updated) {
         setContacts((prev) =>
           prev.map((c) =>
-            (c.id === id)
+            c.id === id
               ? {
                   ...updated,
                   id: updated._id || updated.id,
-                  created: updated.createdAt ? new Date(updated.createdAt).toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: '2-digit',
-                    year: 'numeric'
-                  }) : (updated.created || ''),
+                  initials: String(updated.name || '?')
+                    .trim()
+                    .split(/\s+/)
+                    .map((part) => part[0])
+                    .join('')
+                    .slice(0, 2)
+                    .toUpperCase(),
+                  created: updated.createdAt ? formatDate(updated.createdAt) : updated.created || '',
+                  activity: updated.updatedAt ? formatDate(updated.updatedAt) : updated.activity || '',
                 }
               : c
           )
@@ -159,18 +161,22 @@ export default function ContactsPage() {
 
   const importContacts = async (mapped) => {
     try {
-      const promises = mapped.map(item => createContactApi(item));
+      const promises = mapped.map((item) => createContactApi(item));
       const results = await Promise.all(promises);
-      const newContacts = results.map(res => {
+      const newContacts = results.map((res) => {
         const c = res.data?.data;
         return {
           ...c,
           id: c._id || c.id,
-          created: c.createdAt ? new Date(c.createdAt).toLocaleDateString('en-US', {
-            month: 'short',
-            day: '2-digit',
-            year: 'numeric'
-          }) : (c.created || ''),
+          initials: String(c.name || '?')
+            .trim()
+            .split(/\s+/)
+            .map((part) => part[0])
+            .join('')
+            .slice(0, 2)
+            .toUpperCase(),
+          created: c.createdAt ? formatDate(c.createdAt) : c.created || '',
+          activity: c.updatedAt ? formatDate(c.updatedAt) : c.activity || '',
         };
       });
       setContacts((prev) => [...newContacts, ...prev]);
@@ -180,8 +186,6 @@ export default function ContactsPage() {
       alert(`Bulk import failed: ${errMsg}`);
     }
   };
-
-
 
   const {
     columns,
@@ -203,108 +207,33 @@ export default function ContactsPage() {
     { id: 'notes', label: 'Notes', width: 240 },
   ]);
 
-  const tableWidth = useMemo(() => {
-    return columns.reduce((sum, col) => sum + (col.width || 0), 0);
-  }, [columns]);
-
-
-
   const ownerOptions = useMemo(
-    () => Array.from(new Set(['Me', ...rows.map((row) => row.owner)])),
-    [rows],
+    () => Array.from(new Set(['Me', ...contacts.map((row) => row.owner).filter(Boolean)])),
+    [contacts]
   );
 
   const countryOptions = useMemo(
-    () => Array.from(new Set(['Any', ...rows.map((row) => row.country)])),
-    [rows],
+    () => Array.from(new Set(['Any', ...contacts.map((row) => row.country).filter(Boolean)])),
+    [contacts]
   );
-
-  const handleSave = (email, field, value) => {
-    updateContact(email, { [field]: value });
-  };
 
   const clearFilters = () => {
     setSelectedStage('All');
     setSelectedOwner('Me');
     setSelectedCountry('Any');
-    setOpenDropdown(null);
   };
 
-  const renderCellContent = (row, colId) => {
-    switch (colId) {
-      case 'name':
-        return (
-          <div className="flex items-center gap-3">
-            <Link
-              to={`/contacts/${getContactId(row)}`}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xl font-semibold text-emerald-700 transition hover:bg-emerald-200"
-            >
-              {row.initials}
-            </Link>
-            <div className="min-w-0">
-              <EditableCell value={row.name} onSave={(v) => handleSave(getContactId(row), 'name', v)} />
-            </div>
-          </div>
-        );
-      case 'company':
-        return (
-          <div className="min-w-0 truncate">
-            <EditableCell value={row.company} onSave={(v) => handleSave(getContactId(row), 'company', v)} />
-          </div>
-        );
-      case 'email':
-        return (
-          <div className="min-w-0 truncate text-teal-600">
-            <EditableCell type="email" value={row.email} onSave={(v) => handleSave(getContactId(row), 'email', v)} />
-          </div>
-        );
-      case 'phone':
-        return (
-          <div className="min-w-0 truncate">
-            <EditableCell value={row.phone} onSave={(v) => handleSave(getContactId(row), 'phone', v)} />
-          </div>
-        );
-      case 'linkedin':
-        return (
-          <a href={`https://www.linkedin.com/in/${row.name.replace(/\s+/g, '-').toLowerCase()}`} target="_blank" rel="noreferrer" className="text-teal-600 hover:text-teal-700">
-            <LinkIcon className="h-5 w-5" />
-          </a>
-        );
-      case 'location':
-        return (
-          <div className="min-w-0 truncate">
-            <EditableCell value={row.location} onSave={(v) => handleSave(getContactId(row), 'location', v)} />
-          </div>
-        );
-      case 'stage':
-        return (
-          <EditableCell type="stage" value={row.stage} options={contactStageOptions} onSave={(v) => handleSave(getContactId(row), 'stage', v)} />
-        );
-      case 'activity':
-        return (
-          <div className="text-slate-600">
-            <EditableCell type="date" value={row.activity} onSave={(v) => handleSave(getContactId(row), 'activity', v)} />
-          </div>
-        );
-      case 'created':
-        return (
-          <div className="text-slate-600">
-            <EditableCell type="date" value={row.created} onSave={(v) => handleSave(getContactId(row), 'created', v)} />
-          </div>
-        );
-      case 'notes':
-        return (
-          <div className="min-w-0 truncate italic text-slate-700">
-            <EditableCell type="textarea" value={row.notes} onSave={(v) => handleSave(getContactId(row), 'notes', v)} />
-          </div>
-        );
-      default:
-        return null;
+  const handleSort = (key) => {
+    if (sortKey === key) {
+      setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDirection('asc');
     }
   };
 
   const sortedAndFiltered = useMemo(() => {
-    const filtered = rows.filter((row) => {
+    const filtered = contacts.filter((row) => {
       const stageMatch = selectedStage === 'All' || row.stage === selectedStage;
       const ownerMatch = selectedOwner === 'Me' || row.owner === selectedOwner;
       const countryMatch = selectedCountry === 'Any' || row.country === selectedCountry;
@@ -322,24 +251,18 @@ export default function ContactsPage() {
       if (A > B) return sortDirection === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [rows, selectedStage, selectedOwner, selectedCountry, sortKey, sortDirection]);
+  }, [contacts, selectedStage, selectedOwner, selectedCountry, sortKey, sortDirection]);
 
-  const { visibleCount, handleScroll, loadMore } = usePagination(sortedAndFiltered, [selectedStage, selectedOwner, selectedCountry, sortKey, sortDirection]);
-
-  const handleSort = (key) => {
-    if (sortKey === key) {
-      setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortKey(key);
-      setSortDirection('asc');
-    }
-  };
+  const { visibleCount, loadMore } = usePagination(sortedAndFiltered, [selectedStage, selectedOwner, selectedCountry, sortKey, sortDirection]);
 
   return (
     <section className="w-full space-y-6">
+      {/* Page Header */}
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-sm text-slate-500">Accounts <span className="mx-2">&gt;</span> <span className="font-medium text-slate-800">Contacts</span></p>
+          <p className="text-sm text-slate-500">
+            Accounts <span className="mx-2">&gt;</span> <span className="font-medium text-slate-800">Contacts</span>
+          </p>
           <h1 className="mt-2 text-5xl font-semibold">Contacts</h1>
         </div>
         <div className="flex gap-3">
@@ -421,214 +344,46 @@ export default function ContactsPage() {
         }}
       />
 
+      {/* Stats Panel */}
       <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-4">
-        <StatCard title="Total Contacts" value="12,482" delta="+4.2%" />
-        <StatCard title="Active Leads" value="843" delta="↗" />
-        <StatCard title="Qualified Opportunities" value="215" delta="18% Conv." subtle />
-        <StatCard title="Revenue Potential" value="$4.2M" subtle />
+        <StatCard title="Total Contacts" value={sortedAndFiltered.length} delta="" />
+        <StatCard title="Active Leads" value={sortedAndFiltered.filter(c => c.stage === 'LEAD').length} delta="" />
+        <StatCard title="Qualified Opportunities" value={sortedAndFiltered.filter(c => c.stage === 'QUALIFIED').length} delta="" subtle />
+        <StatCard title="Customers" value={sortedAndFiltered.filter(c => c.stage === 'CUSTOMER').length} subtle />
       </div>
 
-      <div className="mb-6 rounded-2xl border border-slate-300 bg-white p-5">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-semibold text-slate-700">
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white text-slate-600">
-              <FilterIcon className="h-4 w-4" />
-            </span>
-            Filters
-          </div>
+      {/* Filter Bar */}
+      <ContactsFilterBar
+        selectedStage={selectedStage}
+        setSelectedStage={setSelectedStage}
+        selectedOwner={selectedOwner}
+        setSelectedOwner={setSelectedOwner}
+        selectedCountry={selectedCountry}
+        setSelectedCountry={setSelectedCountry}
+        contactStageOptions={contactStageOptions}
+        ownerOptions={ownerOptions}
+        countryOptions={countryOptions}
+        clearFilters={clearFilters}
+      />
 
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setOpenDropdown((current) => (current === 'Stage' ? null : 'Stage'))}
-              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-            >
-              <span>Stage: {selectedStage}</span>
-              <span className="text-slate-400">▾</span>
-            </button>
-            {openDropdown === 'Stage' && (
-              <div className="absolute z-20 mt-2 w-48 rounded-2xl border border-slate-200 bg-white p-3 shadow-xl">
-                <div className="space-y-1">
-                  {['All', ...contactStageOptions].map((option) => (
-                    <button
-                      key={option}
-                      type="button"
-                      onClick={() => {
-                        setSelectedStage(option);
-                        setOpenDropdown(null);
-                      }}
-                      className={`w-full rounded-2xl px-3 py-2 text-left text-sm ${selectedStage === option ? 'bg-slate-100 text-slate-900' : 'text-slate-700 hover:bg-slate-50'}`}
-                    >
-                      {option}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setOpenDropdown((current) => (current === 'Owner' ? null : 'Owner'))}
-              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-            >
-              <span>Owner: {selectedOwner}</span>
-              <span className="text-slate-400">▾</span>
-            </button>
-            {openDropdown === 'Owner' && (
-              <div className="absolute z-20 mt-2 w-48 rounded-2xl border border-slate-200 bg-white p-3 shadow-xl">
-                <div className="space-y-1">
-                  {ownerOptions.map((option) => (
-                    <button
-                      key={option}
-                      type="button"
-                      onClick={() => {
-                        setSelectedOwner(option);
-                        setOpenDropdown(null);
-                      }}
-                      className={`w-full rounded-2xl px-3 py-2 text-left text-sm ${selectedOwner === option ? 'bg-slate-100 text-slate-900' : 'text-slate-700 hover:bg-slate-50'}`}
-                    >
-                      {option}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setOpenDropdown((current) => (current === 'Country' ? null : 'Country'))}
-              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-            >
-              <span>Country: {selectedCountry}</span>
-              <span className="text-slate-400">▾</span>
-            </button>
-            {openDropdown === 'Country' && (
-              <div className="absolute z-20 mt-2 w-48 rounded-2xl border border-slate-200 bg-white p-3 shadow-xl">
-                <div className="space-y-1">
-                  {countryOptions.map((option) => (
-                    <button
-                      key={option}
-                      type="button"
-                      onClick={() => {
-                        setSelectedCountry(option);
-                        setOpenDropdown(null);
-                      }}
-                      className={`w-full rounded-2xl px-3 py-2 text-left text-sm ${selectedCountry === option ? 'bg-slate-100 text-slate-900' : 'text-slate-700 hover:bg-slate-50'}`}
-                    >
-                      {option}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <button onClick={clearFilters} className="ml-auto text-sm font-semibold text-slate-700 hover:text-slate-900">Clear all filters</button>
-        </div>
-      </div>
-
-      <div className="overflow-hidden rounded-2xl border border-slate-300 bg-white w-full">
-        <div
-          className="max-h-[calc(100vh-26rem)] overflow-y-auto overflow-x-auto w-full"
-          onScroll={handleScroll}
-        >
-          <table className="w-full table-fixed" style={{ width: `${tableWidth}px` }}>
-            <thead className="sticky top-0 z-10 bg-white">
-              <tr className="border-b border-gray-100">
-                {columns.map((col, index) => (
-                  <th
-                    key={col.id}
-                    style={{ width: `${col.width}px` }}
-                    className={`relative px-5 py-4 select-none group border-r border-slate-100 last:border-0 text-left text-xs font-medium uppercase tracking-wide text-gray-500 ${col.sortable ? 'cursor-pointer' : ''
-                      } ${dragOverColIndex === index ? 'bg-slate-100 border-l-2 border-l-emerald-500' : ''
-                      }`}
-                    draggable
-                    onDragStart={(e) => handleDragStart(index, e)}
-                    onDragOver={(e) => handleDragOver(index, e)}
-                    onDrop={(e) => handleDrop(index, e)}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span
-                        onClick={() => col.sortable && handleSort(col.sortKey)}
-                        className="truncate cursor-grab active:cursor-grabbing font-semibold flex-grow flex items-center gap-1"
-                      >
-                        {col.label}
-                        {col.sortable && sortKey === col.sortKey && (
-                          <span className="text-[10px]">{sortDirection === 'asc' ? '▲' : '▼'}</span>
-                        )}
-                      </span>
-                      <div
-                        onMouseDown={(e) => handleResizeStart(index, e)}
-                        className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize opacity-0 group-hover:opacity-100 hover:opacity-100 bg-slate-300 active:bg-emerald-500 transition-opacity"
-                        style={{ zIndex: 2 }}
-                      />
-                    </div>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={columns.length} className="px-5 py-12 text-center text-slate-500 font-medium">
-                    Loading contacts...
-                  </td>
-                </tr>
-              ) : error ? (
-                <tr>
-                  <td colSpan={columns.length} className="px-5 py-12 text-center text-rose-500 font-medium">
-                    {error}
-                  </td>
-                </tr>
-              ) : sortedAndFiltered.length === 0 ? (
-                <tr>
-                  <td colSpan={columns.length} className="px-5 py-12 text-center text-slate-500 font-medium">
-                    No contacts found.
-                  </td>
-                </tr>
-              ) : (
-                sortedAndFiltered.slice(0, visibleCount).map((row) => (
-                  <tr key={row.id || row.email} className="border-b border-gray-100 align-top hover:bg-slate-50">
-                    {columns.map((col) => (
-                      <td key={col.id} style={{ width: `${col.width}px` }} className="px-5 py-3 align-middle overflow-hidden">
-                        <div className="flex h-full items-center min-w-0">
-                          {renderCellContent(row, col.id)}
-                        </div>
-                      </td>
-                    ))}
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <div className="border-t border-slate-200 px-5 py-3 text-sm text-slate-500 flex items-center justify-between">
-        <div>
-          Showing {Math.min(sortedAndFiltered.length, visibleCount)} of {sortedAndFiltered.length} results
-          {sortedAndFiltered.length > visibleCount && (
-            <span className="ml-2 text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
-              Scroll down to load more
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          {sortedAndFiltered.length > visibleCount && (
-            <button
-              onClick={loadMore}
-              className="rounded-full bg-slate-100 hover:bg-slate-200 px-4 py-1 text-slate-700 font-medium text-xs transition"
-            >
-              Load More
-            </button>
-          )}
-        </div>
-      </div>
-
-      <button className="fixed bottom-8 right-8 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-700 text-5xl text-white shadow-lg">+</button>
+      {/* Contacts Table */}
+      <ContactsTable
+        contacts={sortedAndFiltered}
+        columns={columns}
+        loading={loading}
+        error={error}
+        sortKey={sortKey}
+        sortDirection={sortDirection}
+        onSort={handleSort}
+        dragOverColIndex={dragOverColIndex}
+        handleResizeStart={handleResizeStart}
+        handleDragStart={handleDragStart}
+        handleDragOver={handleDragOver}
+        handleDrop={handleDrop}
+        visibleCount={visibleCount}
+        loadMore={loadMore}
+        updateContact={updateContact}
+      />
     </section>
   );
 }

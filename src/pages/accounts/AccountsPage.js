@@ -1,7 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
-import FilterPill from '../../components/FilterPill';
-import EditableCell from '../../components/EditableCell';
+import { useEffect, useMemo, useState } from 'react';
 import AddCompanyModal from '../../components/AddCompanyModal';
 import BulkImportModal from '../../components/BulkImportModal';
 import { getAccountId } from '../../utils/recordIds';
@@ -14,6 +11,8 @@ import {
   accountEmployeeSizeOptions,
 } from '../../constants/options';
 import { getCompanies, createCompany as createCompanyApi, updateCompany as updateCompanyApi } from '../../services/companyApi';
+import AccountsFilterBar from './AccountsFilterBar';
+import AccountsTable from './AccountsTable';
 
 const companySampleHeaders = [
   'Company Name',
@@ -55,97 +54,8 @@ const companySampleData = [
     'Employee Size': 'Nov-50',
     'Linkedin URL': 'https://www.linkedin.com/company/finedge-official?originalSubdomain=in'
   },
-  {
-    'Company name': 'MarketFlow Labs',
-    'Owner': 'Riya Mehta',
-    'Source': 'Custom',
-    'Priority': 'P2',
-    'Stage': 'Engaged',
-    'Country': 'China',
-    'City': 'Beijing',
-    'Employee Size': '51-200',
-    'Linkedin URL': 'https://www.linkedin.com/company/marketflow?originalSubdomain=uk'
-  },
-  {
-    'Company name': 'HealthSync Systems',
-    'Owner': 'Arjun Patel',
-    'Source': 'Linkedin',
-    'Priority': 'P0',
-    'Stage': 'Nurture',
-    'Country': 'Nepal',
-    'City': 'Kathmandu',
-    'Employee Size': '201-500',
-    'Linkedin URL': 'https://www.linkedin.com/company/healthsynclive'
-  },
-  {
-    'Company name': 'EduSphere Technologies',
-    'Owner': 'Sneha Kapoor',
-    'Source': 'Reference',
-    'Priority': 'P1',
-    'Stage': 'Demo Done',
-    'Country': 'USA',
-    'City': 'New York',
-    'Employee Size': '501-1,000',
-    'Linkedin URL': 'https://www.linkedin.com/company/eduspheretechnologies?originalSubdomain=in'
-  },
-  {
-    'Company name': 'RetailCore Inc',
-    'Owner': 'Rahul Verma',
-    'Source': 'Custom',
-    'Priority': 'P2',
-    'Stage': 'Dropped',
-    'Country': 'UAE ',
-    'City': 'Abu Dhabi',
-    'Employee Size': '1,001-5,000',
-    'Linkedin URL': 'https://www.linkedin.com/company/retailcore?originalSubdomain=in'
-  },
-  {
-    'Company name': 'DataWave Analytics',
-    'Owner': 'Priya Nair',
-    'Source': 'Linkedin',
-    'Priority': 'P0',
-    'Stage': 'Not Interested',
-    'Country': 'Indonesia',
-    'City': 'Jakarta',
-    'Employee Size': '5,001-10,000',
-    'Linkedin URL': 'https://www.linkedin.com/company/dataweave?originalSubdomain=in'
-  },
-  {
-    'Company name': 'NextGen Commerce',
-    'Owner': 'Karan Malhotra',
-    'Source': 'Linkedin',
-    'Priority': 'P1',
-    'Stage': 'Demo Done',
-    'Country': 'Thailand',
-    'City': 'Bangkok',
-    'Employee Size': '10,001+',
-    'Linkedin URL': 'https://www.linkedin.com/newsletters/next-gen-commerce-7474712470301970433'
-  },
-  {
-    'Company name': 'Visionary AI Labs',
-    'Owner': 'Neha Joshi',
-    'Source': 'Reference',
-    'Priority': 'P2',
-    'Stage': 'Dropped',
-    'Country': 'Singapore',
-    'City': 'Singapore',
-    'Employee Size': '01-Oct',
-    'Linkedin URL': 'https://www.linkedin.com/company/visionariesai?originalSubdomain=in'
-  },
-  {
-    'Company name': 'Coefficient ',
-    'Owner': 'Vikram Singh',
-    'Source': 'Custom',
-    'Priority': 'P0',
-    'Stage': 'Not Interested',
-    'Country': 'Malaysia',
-    'City': 'Kuala Lumpur',
-    'Employee Size': 'Nov-50',
-    'Linkedin URL': 'https://www.linkedin.com/company/coefficient-live-data-in-google-sheets-excel'
-  }
 ];
 
-const viewOptions = ['All Companies', 'My Companies', 'Recently Updated'];
 const propertyOptions = [
   { key: 'company', label: 'Company Name', type: 'text' },
   { key: 'owner', label: 'Owner', type: 'select' },
@@ -168,15 +78,8 @@ const conditionOptions = {
   select: ['is', 'is not', 'is any of'],
   text: ['contains', 'is', 'is not'],
   date: ['is before', 'is after', 'is on', 'is within'],
+  multiselect: ['is any of'],
 };
-
-function ChevronDownIcon({ className = 'h-3 w-3' }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className}>
-      <path d="m7 10 5 5 5-5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
 
 function getPropertyLabel(key) {
   return propertyOptions.find((option) => option.key === key)?.label || key;
@@ -186,38 +89,16 @@ function parseDate(value) {
   return value ? new Date(value).getTime() : null;
 }
 
-const getInitials = (name) => {
-  return String(name || '?')
-    .trim()
-    .split(/\s+/)
-    .map((part) => part[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
-};
-
-const getColorClass = (name) => {
-  const colors = [
-    'bg-blue-100 text-blue-700',
-    'bg-emerald-100 text-emerald-700',
-    'bg-amber-100 text-amber-700',
-    'bg-violet-100 text-violet-700',
-    'bg-rose-100 text-rose-700',
-  ];
-  const hash = String(name || '').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  return colors[hash % colors.length];
-}
-
 export default function AccountsPage() {
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const rows = companies;
-
   const [showAddCompany, setShowAddCompany] = useState(false);
   const [showBulkImport, setShowBulkImport] = useState(false);
-  const globalSearch = '';
+
+  // Filter Bar States
+  const [selectedView, setSelectedView] = useState('All Companies');
   const [filters, setFilters] = useState([]);
   const [showViewDropdown, setShowViewDropdown] = useState(false);
   const [showFilterBuilder, setShowFilterBuilder] = useState(false);
@@ -226,8 +107,10 @@ export default function AccountsPage() {
   const [filterValue, setFilterValue] = useState('');
   const [filterValueExtra, setFilterValueExtra] = useState('');
   const [selectedRows, setSelectedRows] = useState([]);
-  const viewRef = useRef(null);
-  const builderRef = useRef(null);
+
+  // Sorting
+  const [sortKey, setSortKey] = useState('createdDate');
+  const [sortDirection, setSortDirection] = useState('desc');
 
   useEffect(() => {
     let isMounted = true;
@@ -239,11 +122,13 @@ export default function AccountsPage() {
           const mapped = (res.data?.data || []).map((c) => ({
             ...c,
             id: c._id || c.id,
-            createdDate: c.createdAt ? new Date(c.createdAt).toLocaleDateString('en-US', {
-              month: 'short',
-              day: '2-digit',
-              year: 'numeric'
-            }) : (c.createdDate || ''),
+            createdDate: c.createdAt
+              ? new Date(c.createdAt).toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: '2-digit',
+                  year: 'numeric',
+                })
+              : c.createdDate || '',
           }));
           setCompanies(mapped);
           setError(null);
@@ -260,7 +145,9 @@ export default function AccountsPage() {
       }
     };
     fetchCompaniesData();
-    return () => { isMounted = false; };
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const createAccount = async (newCompany) => {
@@ -272,11 +159,13 @@ export default function AccountsPage() {
           {
             ...created,
             id: created._id || created.id,
-            createdDate: created.createdAt ? new Date(created.createdAt).toLocaleDateString('en-US', {
-              month: 'short',
-              day: '2-digit',
-              year: 'numeric'
-            }) : (created.createdDate || ''),
+            createdDate: created.createdAt
+              ? new Date(created.createdAt).toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: '2-digit',
+                  year: 'numeric',
+                })
+              : created.createdDate || '',
           },
           ...prev,
         ]);
@@ -295,15 +184,17 @@ export default function AccountsPage() {
       if (updated) {
         setCompanies((prev) =>
           prev.map((c) =>
-            (c.id === id)
+            c.id === id
               ? {
                   ...updated,
                   id: updated._id || updated.id,
-                  createdDate: updated.createdAt ? new Date(updated.createdAt).toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: '2-digit',
-                    year: 'numeric'
-                  }) : (updated.createdDate || ''),
+                  createdDate: updated.createdAt
+                    ? new Date(updated.createdAt).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: '2-digit',
+                        year: 'numeric',
+                      })
+                    : updated.createdDate || '',
                 }
               : c
           )
@@ -318,18 +209,20 @@ export default function AccountsPage() {
 
   const importAccounts = async (mapped) => {
     try {
-      const promises = mapped.map(item => createCompanyApi(item));
+      const promises = mapped.map((item) => createCompanyApi(item));
       const results = await Promise.all(promises);
-      const newCompanies = results.map(res => {
+      const newCompanies = results.map((res) => {
         const c = res.data?.data;
         return {
           ...c,
           id: c._id || c.id,
-          createdDate: c.createdAt ? new Date(c.createdAt).toLocaleDateString('en-US', {
-            month: 'short',
-            day: '2-digit',
-            year: 'numeric'
-          }) : (c.createdDate || ''),
+          createdDate: c.createdAt
+            ? new Date(c.createdAt).toLocaleDateString('en-US', {
+                month: 'short',
+                day: '2-digit',
+                year: 'numeric',
+              })
+            : c.createdDate || '',
         };
       });
       setCompanies((prev) => [...newCompanies, ...prev]);
@@ -365,15 +258,9 @@ export default function AccountsPage() {
     { id: 'linkedin', label: 'LinkedIn URL', width: 100 },
   ]);
 
-  const tableWidth = useMemo(() => {
-    return columns.reduce((sum, col) => sum + (col.width || 0), 0) + 124; // 52px checkbox + 72px actions
-  }, [columns]);
-
-  const [selectedView, setSelectedView] = useState('All Companies');
-
   const ownerOptions = useMemo(
-    () => Array.from(new Set(rows.map((row) => row.owner))).sort(),
-    [rows],
+    () => Array.from(new Set(companies.map((row) => row.owner).filter(Boolean))).sort(),
+    [companies]
   );
 
   const optionsByProperty = {
@@ -385,41 +272,25 @@ export default function AccountsPage() {
   };
 
   const filterPropertyType = propertyOptions.find((option) => option.key === filterProperty)?.type || 'text';
-
-  useEffect(() => {
-    function closeMenus(event) {
-      if (viewRef.current && !viewRef.current.contains(event.target)) {
-        setShowViewDropdown(false);
-      }
-      if (builderRef.current && !builderRef.current.contains(event.target)) {
-        setShowFilterBuilder(false);
-      }
-    }
-
-    document.addEventListener('mousedown', closeMenus);
-    return () => document.removeEventListener('mousedown', closeMenus);
-  }, []);
-
   const currentUser = 'Alex Rivera';
 
-  const filteredRows = useMemo(() => {
-    const searchTerm = globalSearch.trim().toLowerCase();
+  const handleSort = (key) => {
+    if (sortKey === key) {
+      setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+    setSortKey(key);
+    setSortDirection('asc');
+  };
 
-    return rows.filter((row) => {
-      const globalMatch = [row.company, row.site, row.owner, row.notes, row.nextSteps, row.country, row.city, row.custom]
-        .concat(row.source || [])
-        .some((value) => value?.toString().toLowerCase().includes(searchTerm));
-
-      if (!globalMatch) {
-        return false;
-      }
-
+  const sortedAndFilteredRows = useMemo(() => {
+    const filtered = companies.filter((row) => {
       const viewMatch =
         selectedView === 'All Companies'
           ? true
           : selectedView === 'My Companies'
-            ? row.owner === currentUser
-            : parseDate(row.lastActivityDate) >= Date.now() - 14 * 86_400_000;
+          ? row.owner === currentUser
+          : parseDate(row.lastActivityDate) >= Date.now() - 14 * 86_400_000;
 
       if (!viewMatch) {
         return false;
@@ -450,14 +321,9 @@ export default function AccountsPage() {
         }
 
         if (type === 'multiselect') {
-          const values = Array.isArray(rowValue) ? rowValue : [];
-          if (filter.condition === 'is') return values.includes(filter.value);
-          if (filter.condition === 'is not') return !values.includes(filter.value);
-          if (filter.condition === 'is any of') {
-            const allowed = Array.isArray(filter.value) ? filter.value : [filter.value];
-            return values.some((item) => allowed.includes(item));
-          }
-          return true;
+          const arr = Array.isArray(rowValue) ? rowValue : [rowValue].filter(Boolean);
+          const allowed = Array.isArray(filter.value) ? filter.value : [filter.value];
+          return arr.some((val) => allowed.includes(val));
         }
 
         if (type === 'date') {
@@ -476,13 +342,32 @@ export default function AccountsPage() {
         return true;
       });
     });
-  }, [rows, globalSearch, selectedView, filters]);
+
+    if (!sortKey) return filtered;
+    const sorted = [...filtered];
+    sorted.sort((a, b) => {
+      let aVal = a[sortKey];
+      let bVal = b[sortKey];
+
+      if (sortKey === 'createdDate' || sortKey === 'lastActivityDate' || sortKey === 'nextActionDate') {
+        aVal = aVal ? new Date(aVal).getTime() : 0;
+        bVal = bVal ? new Date(bVal).getTime() : 0;
+      }
+
+      if (typeof aVal === 'string') {
+        return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      }
+      return sortDirection === 'asc' ? (aVal || 0) - (bVal || 0) : (bVal || 0) - (aVal || 0);
+    });
+
+    return sorted;
+  }, [companies, selectedView, filters, sortKey, sortDirection]);
+
+  const { visibleCount, loadMore } = usePagination(sortedAndFilteredRows, [filters, selectedView, sortKey, sortDirection]);
 
   const activeFilterChips = filters.map((filter, index) => {
     const valueLabel =
-      Array.isArray(filter.value) && filter.value.length > 0
-        ? filter.value.join(', ')
-        : filter.value;
+      Array.isArray(filter.value) && filter.value.length > 0 ? filter.value.join(', ') : filter.value;
     return {
       key: `${filter.property}-${index}`,
       label: `${getPropertyLabel(filter.property)}: ${valueLabel}`,
@@ -490,160 +375,11 @@ export default function AccountsPage() {
     };
   });
 
-  const addFilter = () => {
-    const value = filterPropertyType === 'date' && filterCondition === 'is within'
-      ? { value: filterValue, valueExtra: filterValueExtra }
-      : filterPropertyType === 'multiselect' && filterCondition === 'is any of'
-        ? filterValue.split(',').map((item) => item.trim()).filter(Boolean)
-        : filterValue;
-
-    if (!filterValue) {
-      return;
-    }
-
-    setFilters((current) => [
-      ...current,
-      {
-        property: filterProperty,
-        label: getPropertyLabel(filterProperty),
-        condition: filterCondition,
-        value,
-      },
-    ]);
-    setFilterValue('');
-    setFilterValueExtra('');
-    setShowFilterBuilder(false);
-  };
-
-  const handleSave = (id, field, value) => {
-    updateAccount(id, { [field]: value });
-  };
-
-  const toggleRow = (id) => {
-    setSelectedRows((current) =>
-      current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
-    );
-  };
-
-  const toggleSelectAll = () => {
-    if (selectedRows.length === filteredRows.length) {
-      setSelectedRows([]);
-    } else {
-      setSelectedRows(filteredRows.map((row) => getAccountId(row)));
-    }
-  };
-
-  const { visibleCount, handleScroll, loadMore } = usePagination(filteredRows, [globalSearch, filters, selectedView]);
-
-  const renderCellContent = (row, colId) => {
-    switch (colId) {
-      case 'company':
-        return (
-          <div className="flex h-full items-center gap-3 min-w-0">
-            <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-xl font-semibold ${getColorClass(row.company)}`}>
-              {getInitials(row.company)}
-            </div>
-            <div className="min-w-0">
-              <Link
-                to={`/accounts/${getAccountId(row)}`}
-                className="text-sm font-semibold text-slate-900 hover:text-emerald-700 hover:underline block truncate"
-              >
-                {row.company}
-              </Link>
-              <a href={`https://${row.site}`} target="_blank" rel="noreferrer" className="mt-1 block truncate text-sm text-slate-500 hover:text-slate-700">
-                {row.site}
-              </a>
-            </div>
-          </div>
-        );
-      case 'owner':
-        return (
-          <EditableCell
-            type="owner"
-            value={row.owner}
-            options={ownerOptions}
-            onSave={(value) => handleSave(getAccountId(row), 'owner', value)}
-          />
-        );
-      case 'source':
-        return (
-          <EditableCell
-            type="multiselect"
-            value={row.source}
-            options={accountSourceOptions}
-            onSave={(value) => handleSave(getAccountId(row), 'source', value)}
-          />
-        );
-      case 'priority':
-        return (
-          <EditableCell
-            type="select"
-            value={row.priority}
-            options={accountPriorityOptions}
-            onSave={(value) => handleSave(getAccountId(row), 'priority', value)}
-          />
-        );
-      case 'stage':
-        return (
-          <EditableCell
-            type="stage"
-            value={row.stage}
-            options={accountStageOptions}
-            onSave={(value) => handleSave(getAccountId(row), 'stage', value)}
-          />
-        );
-      case 'notes':
-        return (
-          <EditableCell type="textarea" value={row.notes} onSave={(value) => handleSave(getAccountId(row), 'notes', value)} />
-        );
-      case 'nextSteps':
-        return (
-          <EditableCell type="text" value={row.nextSteps} onSave={(value) => handleSave(getAccountId(row), 'nextSteps', value)} />
-        );
-      case 'nextActionDate':
-        return (
-          <EditableCell type="date" value={row.nextActionDate} onSave={(value) => handleSave(getAccountId(row), 'nextActionDate', value)} />
-        );
-      case 'lastActivityDate':
-        return (
-          <EditableCell type="date" value={row.lastActivityDate} onSave={(value) => handleSave(getAccountId(row), 'lastActivityDate', value)} />
-        );
-      case 'createdDate':
-        return (
-          <EditableCell type="date" value={row.createdDate} onSave={(value) => handleSave(getAccountId(row), 'createdDate', value)} />
-        );
-      case 'country':
-        return (
-          <EditableCell type="text" value={row.country} onSave={(value) => handleSave(getAccountId(row), 'country', value)} />
-        );
-      case 'custom':
-        return (
-          <EditableCell type="text" value={row.custom} onSave={(value) => handleSave(getAccountId(row), 'custom', value)} />
-        );
-      case 'city':
-        return (
-          <EditableCell type="text" value={row.city} onSave={(value) => handleSave(getAccountId(row), 'city', value)} />
-        );
-      case 'employeeSize':
-        return (
-          <EditableCell
-            type="select"
-            value={row.employeeSize}
-            options={accountEmployeeSizeOptions}
-            onSave={(value) => handleSave(getAccountId(row), 'employeeSize', value)}
-          />
-        );
-      case 'linkedin':
-        return (
-          <EditableCell type="linkedin" value={row.linkedin} onSave={(value) => handleSave(getAccountId(row), 'linkedin', value)} />
-        );
-      default:
-        return null;
-    }
-  };
+  const clearAllFilters = () => setFilters([]);
 
   return (
     <section className="w-full space-y-6">
+      {/* Page Header */}
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="text-sm text-slate-500">
@@ -713,291 +449,53 @@ export default function AccountsPage() {
         }}
       />
 
-      <div className="mb-6 rounded-2xl border border-slate-300 bg-white p-5">
-        <div className="flex flex-wrap items-center gap-3" ref={viewRef}>
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setShowViewDropdown((current) => !current)}
-              className="inline-flex min-w-[160px] flex-col items-start rounded-full border border-slate-200 bg-slate-50 px-4 py-2 shadow-sm"
-            >
-              <span className="text-[10px] font-medium uppercase tracking-wide text-gray-400">VIEW</span>
-              <span className="mt-1 flex items-center gap-2 text-sm font-medium text-gray-900">
-                <span>{selectedView}</span>
-                <ChevronDownIcon className="text-gray-400" />
-              </span>
-            </button>
-            {showViewDropdown && (
-              <div className="absolute left-0 z-20 mt-2 w-64 rounded-3xl border border-slate-200 bg-white p-4 shadow-xl">
-                <div className="space-y-2">
-                  {viewOptions.map((view) => (
-                    <button
-                      key={view}
-                      type="button"
-                      onClick={() => {
-                        setSelectedView(view);
-                        setShowViewDropdown(false);
-                      }}
-                      className={`w-full rounded-2xl px-4 py-3 text-left text-sm ${selectedView === view ? 'bg-slate-100 text-slate-900' : 'text-slate-700 hover:bg-slate-50'}`}
-                    >
-                      {view}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+      {/* Filter Bar */}
+      <AccountsFilterBar
+        selectedView={selectedView}
+        setSelectedView={setSelectedView}
+        showViewDropdown={showViewDropdown}
+        setShowViewDropdown={setShowViewDropdown}
+        activeFilterChips={activeFilterChips}
+        clearAllFilters={clearAllFilters}
+        showFilterBuilder={showFilterBuilder}
+        setShowFilterBuilder={setShowFilterBuilder}
+        filterProperty={filterProperty}
+        setFilterProperty={setFilterProperty}
+        filterCondition={filterCondition}
+        setFilterCondition={setFilterCondition}
+        filterValue={filterValue}
+        setFilterValue={setFilterValue}
+        filterValueExtra={filterValueExtra}
+        setFilterValueExtra={setFilterValueExtra}
+        filters={filters}
+        setFilters={setFilters}
+        optionsByProperty={optionsByProperty}
+        propertyOptions={propertyOptions}
+        conditionOptions={conditionOptions}
+        filterPropertyType={filterPropertyType}
+      />
 
-          <div className="flex flex-wrap gap-2">{activeFilterChips.map((chip) => (
-            <FilterPill key={chip.key} label={chip.label} onRemove={chip.onRemove} />
-          ))}</div>
-
-          <div className="ml-auto flex items-center gap-3">
-            {activeFilterChips.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setFilters([])}
-                className="rounded-full text-sm font-semibold text-slate-500 hover:text-slate-900"
-              >
-                Clear all filters
-              </button>
-            )}
-            <div className="relative" ref={builderRef}>
-              <button
-                type="button"
-                onClick={() => setShowFilterBuilder((current) => !current)}
-                className="inline-flex items-center rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm"
-              >
-                More Filters
-              </button>
-              {showFilterBuilder && (
-                <div className="absolute right-0 top-full z-20 mt-3 w-[360px] rounded-3xl border border-slate-200 bg-white p-5 shadow-xl">
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-[10px] font-semibold uppercase tracking-wide text-gray-400">Property</label>
-                      <select
-                        value={filterProperty}
-                        onChange={(event) => {
-                          const nextProperty = event.target.value;
-                          setFilterProperty(nextProperty);
-                          const nextType = propertyOptions.find((option) => option.key === nextProperty)?.type || 'text';
-                          setFilterCondition(conditionOptions[nextType][0]);
-                          setFilterValue('');
-                          setFilterValueExtra('');
-                        }}
-                        className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
-                      >
-                        {propertyOptions.map((option) => (
-                          <option key={option.key} value={option.key}>{option.label}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-semibold uppercase tracking-wide text-gray-400">Condition</label>
-                      <select
-                        value={filterCondition}
-                        onChange={(event) => setFilterCondition(event.target.value)}
-                        className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
-                      >
-                        {conditionOptions[filterPropertyType].map((condition) => (
-                          <option key={condition} value={condition}>{condition}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-semibold uppercase tracking-wide text-gray-400">Value</label>
-                      {filterPropertyType === 'date' ? (
-                        filterCondition === 'is within' ? (
-                          <div className="mt-2 grid gap-3 sm:grid-cols-2">
-                            <input
-                              type="date"
-                              value={filterValue}
-                              onChange={(e) => setFilterValue(e.target.value)}
-                              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
-                            />
-                            <input
-                              type="date"
-                              value={filterValueExtra}
-                              onChange={(e) => setFilterValueExtra(e.target.value)}
-                              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
-                            />
-                          </div>
-                        ) : (
-                          <input
-                            type="date"
-                            value={filterValue}
-                            onChange={(e) => setFilterValue(e.target.value)}
-                            className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
-                          />
-                        )
-                      ) : filterPropertyType === 'select' || filterPropertyType === 'multiselect' ? (
-                        <div className="mt-2 space-y-2">
-                          <select
-                            value={filterValue}
-                            onChange={(e) => setFilterValue(e.target.value)}
-                            className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
-                          >
-                            <option value="">Select a value</option>
-                            {optionsByProperty[filterProperty]?.map((option) => (
-                              <option key={option} value={option}>{option}</option>
-                            ))}
-                          </select>
-                          <input
-                            type="text"
-                            value={filterValue}
-                            onChange={(e) => setFilterValue(e.target.value)}
-                            placeholder={`Or type a new ${getPropertyLabel(filterProperty).toLowerCase()}`}
-                            className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
-                          />
-                        </div>
-                      ) : (
-                        <input
-                          type="text"
-                          value={filterValue}
-                          onChange={(e) => setFilterValue(e.target.value)}
-                          className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
-                          placeholder="Filter value"
-                        />
-                      )}
-                    </div>
-                    <div className="flex items-center justify-between gap-3 pt-2">
-                      <button
-                        type="button"
-                        onClick={() => setShowFilterBuilder(false)}
-                        className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={addFilter}
-                        className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
-                      >
-                        Add filter
-                      </button>
-                    </div>
-                    <div className="text-xs text-slate-400">Filters apply instantly to the table.</div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="overflow-hidden rounded-2xl border border-slate-300 bg-white w-full">
-        <div
-          className="max-h-[calc(100vh-26rem)] overflow-y-auto overflow-x-auto w-full"
-          onScroll={handleScroll}
-        >
-          <table className="w-full table-fixed" style={{ width: `${tableWidth}px` }}>
-            <thead className="sticky top-0 z-10 bg-white">
-              <tr className="border-b border-gray-100 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
-                <th className="w-[52px] px-5 py-4">
-                  <input
-                    type="checkbox"
-                    checked={selectedRows.length === filteredRows.length && filteredRows.length > 0}
-                    onChange={toggleSelectAll}
-                    className="h-5 w-5 rounded border-slate-300"
-                  />
-                </th>
-                {columns.map((col, index) => (
-                  <th
-                    key={col.id}
-                    style={{ width: `${col.width}px` }}
-                    className={`relative px-5 py-4 select-none group border-r border-slate-100 last:border-0 ${dragOverColIndex === index ? 'bg-slate-100 border-l-2 border-l-emerald-500' : ''
-                      }`}
-                    draggable
-                    onDragStart={(e) => handleDragStart(index, e)}
-                    onDragOver={(e) => handleDragOver(index, e)}
-                    onDrop={(e) => handleDrop(index, e)}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="truncate cursor-grab active:cursor-grabbing font-semibold">
-                        {col.label}
-                      </span>
-                      <div
-                        onMouseDown={(e) => handleResizeStart(index, e)}
-                        className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize opacity-0 group-hover:opacity-100 hover:opacity-100 bg-slate-300 active:bg-emerald-500 transition-opacity"
-                        style={{ zIndex: 2 }}
-                      />
-                    </div>
-                  </th>
-                ))}
-                <th className="w-[72px] px-5 py-4">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={columns.length + 2} className="px-5 py-12 text-center text-slate-500 font-medium">
-                    Loading companies...
-                  </td>
-                </tr>
-              ) : error ? (
-                <tr>
-                  <td colSpan={columns.length + 2} className="px-5 py-12 text-center text-rose-500 font-medium">
-                    {error}
-                  </td>
-                </tr>
-              ) : filteredRows.length === 0 ? (
-                <tr>
-                  <td colSpan={columns.length + 2} className="px-5 py-12 text-center text-slate-500 font-medium">
-                    No companies found.
-                  </td>
-                </tr>
-              ) : (
-                filteredRows.slice(0, visibleCount).map((row) => (
-                  <tr key={getAccountId(row)} className="border-b border-slate-200 bg-white hover:bg-slate-50">
-                    <td className="px-5 py-4 align-middle w-[52px]">
-                      <div className="flex h-full items-center">
-                        <input
-                          type="checkbox"
-                          checked={selectedRows.includes(getAccountId(row))}
-                          onChange={() => toggleRow(getAccountId(row))}
-                          className="h-5 w-5 rounded border-slate-300"
-                        />
-                      </div>
-                    </td>
-                    {columns.map((col) => (
-                      <td key={col.id} style={{ width: `${col.width}px` }} className="px-5 py-4 align-middle overflow-hidden">
-                        <div className="flex h-full items-center min-w-0 truncate">
-                          {renderCellContent(row, col.id)}
-                        </div>
-                      </td>
-                    ))}
-                    <td className="px-5 py-4 align-middle text-slate-400 w-[72px]">
-                      <div className="flex h-full items-center">...
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="border-t border-slate-200 px-5 py-3 text-sm text-slate-500 flex items-center justify-between">
-        <div>
-          Showing {Math.min(filteredRows.length, visibleCount)} of {filteredRows.length} results
-          {filteredRows.length > visibleCount && (
-            <span className="ml-2 text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
-              Scroll down to load more
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          {filteredRows.length > visibleCount && (
-            <button
-              onClick={loadMore}
-              className="rounded-full bg-slate-100 hover:bg-slate-200 px-4 py-1 text-slate-700 font-medium text-xs transition"
-            >
-              Load More
-            </button>
-          )}
-        </div>
-      </div>
+      {/* Accounts Table */}
+      <AccountsTable
+        companies={sortedAndFilteredRows}
+        columns={columns}
+        loading={loading}
+        error={error}
+        sortKey={sortKey}
+        sortDirection={sortDirection}
+        onSort={handleSort}
+        dragOverColIndex={dragOverColIndex}
+        handleResizeStart={handleResizeStart}
+        handleDragStart={handleDragStart}
+        handleDragOver={handleDragOver}
+        handleDrop={handleDrop}
+        selectedRows={selectedRows}
+        setSelectedRows={setSelectedRows}
+        visibleCount={visibleCount}
+        loadMore={loadMore}
+        ownerOptions={ownerOptions}
+        updateAccount={updateAccount}
+      />
     </section>
   );
 }
