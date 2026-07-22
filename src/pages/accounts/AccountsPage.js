@@ -4,7 +4,6 @@ import FilterPill from '../../components/FilterPill';
 import EditableCell from '../../components/EditableCell';
 import AddCompanyModal from '../../components/AddCompanyModal';
 import BulkImportModal from '../../components/BulkImportModal';
-import { useAccounts } from '../../context/AccountsContext';
 import { getAccountId } from '../../utils/recordIds';
 import { useTableColumns } from '../../utils/useTableColumns';
 import { usePagination } from '../../utils/usePagination';
@@ -14,6 +13,7 @@ import {
   accountSourceOptions,
   accountEmployeeSizeOptions,
 } from '../../data/accountsData';
+import { getCompanies, createCompany as createCompanyApi, updateCompany as updateCompanyApi } from '../../services/companyApi';
 
 const companySampleHeaders = [
   'Company Name',
@@ -186,8 +186,35 @@ function parseDate(value) {
   return value ? new Date(value).getTime() : null;
 }
 
+const getInitials = (name) => {
+  return String(name || '?')
+    .trim()
+    .split(/\s+/)
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+};
+
+const getColorClass = (name) => {
+  const colors = [
+    'bg-blue-100 text-blue-700',
+    'bg-emerald-100 text-emerald-700',
+    'bg-amber-100 text-amber-700',
+    'bg-violet-100 text-violet-700',
+    'bg-rose-100 text-rose-700',
+  ];
+  const hash = String(name || '').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return colors[hash % colors.length];
+}
+
 export default function AccountsPage() {
-  const { accounts: rows, createAccount, importAccounts, updateAccount } = useAccounts();
+  const [companies, setCompanies] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const rows = companies;
+
   const [showAddCompany, setShowAddCompany] = useState(false);
   const [showBulkImport, setShowBulkImport] = useState(false);
   const globalSearch = '';
@@ -201,6 +228,117 @@ export default function AccountsPage() {
   const [selectedRows, setSelectedRows] = useState([]);
   const viewRef = useRef(null);
   const builderRef = useRef(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchCompaniesData = async () => {
+      try {
+        setLoading(true);
+        const res = await getCompanies();
+        if (isMounted) {
+          const mapped = (res.data?.data || []).map((c) => ({
+            ...c,
+            id: c._id || c.id,
+            createdDate: c.createdAt ? new Date(c.createdAt).toLocaleDateString('en-US', {
+              month: 'short',
+              day: '2-digit',
+              year: 'numeric'
+            }) : (c.createdDate || ''),
+          }));
+          setCompanies(mapped);
+          setError(null);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setError('Failed to fetch companies.');
+          console.error(err);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+    fetchCompaniesData();
+    return () => { isMounted = false; };
+  }, []);
+
+  const createAccount = async (newCompany) => {
+    try {
+      const res = await createCompanyApi(newCompany);
+      const created = res.data?.data;
+      if (created) {
+        setCompanies((prev) => [
+          {
+            ...created,
+            id: created._id || created.id,
+            createdDate: created.createdAt ? new Date(created.createdAt).toLocaleDateString('en-US', {
+              month: 'short',
+              day: '2-digit',
+              year: 'numeric'
+            }) : (created.createdDate || ''),
+          },
+          ...prev,
+        ]);
+      }
+    } catch (err) {
+      console.error('Failed to create company:', err);
+      const errMsg = err.response?.data?.message || err.message || 'Unknown error';
+      alert(`Failed to create company: ${errMsg}`);
+    }
+  };
+
+  const updateAccount = async (id, updatedFields) => {
+    try {
+      const res = await updateCompanyApi(id, updatedFields);
+      const updated = res.data?.data;
+      if (updated) {
+        setCompanies((prev) =>
+          prev.map((c) =>
+            (c.id === id)
+              ? {
+                  ...updated,
+                  id: updated._id || updated.id,
+                  createdDate: updated.createdAt ? new Date(updated.createdAt).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: '2-digit',
+                    year: 'numeric'
+                  }) : (updated.createdDate || ''),
+                }
+              : c
+          )
+        );
+      }
+    } catch (err) {
+      console.error('Failed to update company:', err);
+      const errMsg = err.response?.data?.message || err.message || 'Unknown error';
+      alert(`Failed to update company: ${errMsg}`);
+    }
+  };
+
+  const importAccounts = async (mapped) => {
+    try {
+      const promises = mapped.map(item => createCompanyApi(item));
+      const results = await Promise.all(promises);
+      const newCompanies = results.map(res => {
+        const c = res.data?.data;
+        return {
+          ...c,
+          id: c._id || c.id,
+          createdDate: c.createdAt ? new Date(c.createdAt).toLocaleDateString('en-US', {
+            month: 'short',
+            day: '2-digit',
+            year: 'numeric'
+          }) : (c.createdDate || ''),
+        };
+      });
+      setCompanies((prev) => [...newCompanies, ...prev]);
+    } catch (err) {
+      console.error('Failed to import companies:', err);
+      const errMsg = err.response?.data?.message || err.message || 'Unknown error';
+      alert(`Bulk import failed: ${errMsg}`);
+    }
+  };
 
   const {
     columns,
@@ -402,8 +540,8 @@ export default function AccountsPage() {
       case 'company':
         return (
           <div className="flex h-full items-center gap-3 min-w-0">
-            <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-xl font-semibold ${row.color}`}>
-              {row.init}
+            <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-xl font-semibold ${getColorClass(row.company)}`}>
+              {getInitials(row.company)}
             </div>
             <div className="min-w-0">
               <Link
@@ -554,7 +692,7 @@ export default function AccountsPage() {
         customSampleData={companySampleData}
         requiredFields={['Company Name', 'Owner', 'Stage']}
         onImport={(importedRows) => {
-          const mapped = importedRows.map((row, index) => ({
+          const mapped = importedRows.map((row) => ({
             company: row['Company Name'] || '',
             site: '',
             owner: row['Owner'] || '',
@@ -565,14 +703,10 @@ export default function AccountsPage() {
             nextSteps: row['Next Step'] || '',
             nextActionDate: row['Next Action Date'] || '',
             lastActivityDate: row['Last Activity Date'] || '',
-            createdDate: row['Created Date'] || new Date().toISOString().slice(0, 10),
             country: row['Country'] || '',
             city: row['City'] || '',
             employeeSize: row['Employee Size'] || '',
             linkedin: row['LinkedIn URL'] || '',
-            companyId: `acc-import-${Date.now()}-${index}`,
-            color: 'bg-slate-100 text-slate-700',
-            init: (row['Company Name'] || '?').charAt(0).toUpperCase(),
           }));
           importAccounts(mapped);
           setShowBulkImport(false);
@@ -794,31 +928,51 @@ export default function AccountsPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredRows.slice(0, visibleCount).map((row) => (
-                <tr key={getAccountId(row)} className="border-b border-slate-200 bg-white hover:bg-slate-50">
-                  <td className="px-5 py-4 align-middle w-[52px]">
-                    <div className="flex h-full items-center">
-                      <input
-                        type="checkbox"
-                        checked={selectedRows.includes(getAccountId(row))}
-                        onChange={() => toggleRow(getAccountId(row))}
-                        className="h-5 w-5 rounded border-slate-300"
-                      />
-                    </div>
-                  </td>
-                  {columns.map((col) => (
-                    <td key={col.id} style={{ width: `${col.width}px` }} className="px-5 py-4 align-middle overflow-hidden">
-                      <div className="flex h-full items-center min-w-0 truncate">
-                        {renderCellContent(row, col.id)}
-                      </div>
-                    </td>
-                  ))}
-                  <td className="px-5 py-4 align-middle text-slate-400 w-[72px]">
-                    <div className="flex h-full items-center">...
-                    </div>
+              {loading ? (
+                <tr>
+                  <td colSpan={columns.length + 2} className="px-5 py-12 text-center text-slate-500 font-medium">
+                    Loading companies...
                   </td>
                 </tr>
-              ))}
+              ) : error ? (
+                <tr>
+                  <td colSpan={columns.length + 2} className="px-5 py-12 text-center text-rose-500 font-medium">
+                    {error}
+                  </td>
+                </tr>
+              ) : filteredRows.length === 0 ? (
+                <tr>
+                  <td colSpan={columns.length + 2} className="px-5 py-12 text-center text-slate-500 font-medium">
+                    No companies found.
+                  </td>
+                </tr>
+              ) : (
+                filteredRows.slice(0, visibleCount).map((row) => (
+                  <tr key={getAccountId(row)} className="border-b border-slate-200 bg-white hover:bg-slate-50">
+                    <td className="px-5 py-4 align-middle w-[52px]">
+                      <div className="flex h-full items-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedRows.includes(getAccountId(row))}
+                          onChange={() => toggleRow(getAccountId(row))}
+                          className="h-5 w-5 rounded border-slate-300"
+                        />
+                      </div>
+                    </td>
+                    {columns.map((col) => (
+                      <td key={col.id} style={{ width: `${col.width}px` }} className="px-5 py-4 align-middle overflow-hidden">
+                        <div className="flex h-full items-center min-w-0 truncate">
+                          {renderCellContent(row, col.id)}
+                        </div>
+                      </td>
+                    ))}
+                    <td className="px-5 py-4 align-middle text-slate-400 w-[72px]">
+                      <div className="flex h-full items-center">...
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

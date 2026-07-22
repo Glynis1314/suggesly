@@ -1,8 +1,6 @@
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { useAccounts } from '../../context/AccountsContext';
-import { useContacts } from '../../context/ContactsContext';
-import { useDeals } from '../../context/DealsContext';
-import { getAccountId, getContactId } from '../../utils/recordIds';
+import { getContactId } from '../../utils/recordIds';
 import { formatDateLocal, formatCurrency } from '../../utils/format';
 import EditableCell from '../../components/EditableCell';
 import RecordActivityTabs from '../../components/RecordActivityTabs';
@@ -14,19 +12,126 @@ import {
   accountSourceOptions,
   accountEmployeeSizeOptions,
 } from '../../data/accountsData';
+import { getCompanyById, updateCompany } from '../../services/companyApi';
+import { getContactsByCompany, getContacts } from '../../services/contactApi';
+import { getDeals } from '../../services/dealApi';
 
 const ownerOptions = ['Alex Rivera', 'Jane Smith', 'Sarah Jenkins', 'Kevin Malone', 'Michael Chen', 'Olivia Lee'];
-
-
 
 export default function CompanyDetailPage() {
   const { companyId } = useParams();
   const navigate = useNavigate();
-  const { accounts, updateAccount } = useAccounts();
-  const { contacts } = useContacts();
-  const { deals } = useDeals();
+  const [account, setAccount] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [associatedContacts, setAssociatedContacts] = useState([]);
+  const [associatedDeals, setAssociatedDeals] = useState([]);
 
-  const account = accounts.find((item) => getAccountId(item) === companyId);
+  useEffect(() => {
+    let isMounted = true;
+    const fetchCompanyData = async () => {
+      try {
+        setLoading(true);
+        const res = await getCompanyById(companyId);
+        if (!isMounted) return;
+        
+        const companyData = res.data?.data;
+        if (!companyData) {
+          setAccount(null);
+          setLoading(false);
+          return;
+        }
+        
+        const mappedCompany = {
+          ...companyData,
+          id: companyData._id || companyData.id,
+          createdDate: companyData.createdAt ? new Date(companyData.createdAt).toLocaleDateString('en-US', {
+            month: 'short',
+            day: '2-digit',
+            year: 'numeric'
+          }) : (companyData.createdDate || ''),
+        };
+        setAccount(mappedCompany);
+        setError(null);
+        
+        // Fetch associated contacts
+        try {
+          const contactsRes = await getContactsByCompany(companyId);
+          if (isMounted) {
+            setAssociatedContacts(contactsRes.data?.data || []);
+          }
+        } catch {
+          // Fallback fetch all contacts and filter
+          try {
+            const contactsRes = await getContacts();
+            if (isMounted) {
+              const allContacts = contactsRes.data?.data || [];
+              const matched = allContacts.filter(c => {
+                const compId = c.company?._id || c.company;
+                return compId === companyId || compId === companyData.company;
+              });
+              setAssociatedContacts(matched);
+            }
+          } catch (e) {
+            console.error('Failed to fetch contacts:', e);
+          }
+        }
+        
+        // Fetch deals
+        try {
+          const dealsRes = await getDeals();
+          if (isMounted) {
+            const allDeals = dealsRes.data?.data || [];
+            const matchedDeals = allDeals.filter(d => {
+              const compId = d.associatedCompany?._id || d.associatedCompany;
+              return compId === companyId || compId === companyData.company;
+            });
+            setAssociatedDeals(mappedDeals(matchedDeals));
+          }
+        } catch (e) {
+          console.error('Failed to fetch deals:', e);
+        }
+        
+      } catch (err) {
+        if (isMounted) {
+          setError('Failed to fetch company details.');
+          console.error(err);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+    
+    const mappedDeals = (dealsList) => dealsList.map(d => ({ ...d, id: d._id || d.id }));
+    
+    fetchCompanyData();
+    return () => { isMounted = false; };
+  }, [companyId]);
+
+  if (loading) {
+    return (
+      <section className="w-full space-y-6">
+        <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center">
+          <p className="text-2xl font-semibold text-slate-900">Loading...</p>
+        </div>
+      </section>
+    );
+  }
+
+  if (error) {
+    return (
+      <section className="w-full space-y-6">
+        <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center">
+          <p className="text-2xl font-semibold text-rose-500">{error}</p>
+          <Link to="/accounts" className="mt-6 inline-flex rounded-xl bg-emerald-700 px-6 py-3 text-xl font-semibold text-white">
+            Back to companies
+          </Link>
+        </div>
+      </section>
+    );
+  }
 
   if (!account) {
     return (
@@ -42,11 +147,27 @@ export default function CompanyDetailPage() {
     );
   }
 
-  const accountId = getAccountId(account);
-  const save = (field) => (value) => updateAccount(accountId, { [field]: value });
-
-  const associatedContacts = contacts.filter((contact) => contact.company === account.company);
-  const associatedDeals = deals.filter((deal) => deal.associatedCompany === account.company);
+  const save = (field) => async (value) => {
+    try {
+      const res = await updateCompany(companyId, { [field]: value });
+      const updated = res.data?.data;
+      if (updated) {
+        setAccount({
+          ...updated,
+          id: updated._id || updated.id,
+          createdDate: updated.createdAt ? new Date(updated.createdAt).toLocaleDateString('en-US', {
+            month: 'short',
+            day: '2-digit',
+            year: 'numeric'
+          }) : (updated.createdDate || ''),
+        });
+      }
+    } catch (err) {
+      console.error('Failed to update company:', err);
+      const errMsg = err.response?.data?.message || err.message || 'Unknown error';
+      alert(`Failed to update company: ${errMsg}`);
+    }
+  };
 
   const activities = [
     {

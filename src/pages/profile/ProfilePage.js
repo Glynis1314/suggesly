@@ -65,9 +65,9 @@ export default function ProfilePage() {
   const [passwordMessage, setPasswordMessage] = useState('');
   const [savedFlash, setSavedFlash] = useState(false);
 
-  const { deals } = useDeals();
-  const { accounts } = useAccounts();
-  const { contacts } = useContacts();
+  const { deals, loading: dealsLoading, error: dealsError } = useDeals();
+  const { accounts, loading: accountsLoading, error: accountsError } = useAccounts();
+  const { contacts, loading: contactsLoading, error: contactsError } = useContacts();
 
   const stats = useMemo(() => {
     const ownedDeals = deals.filter((deal) => deal.dealOwner === profile.name).length;
@@ -124,6 +124,30 @@ export default function ProfilePage() {
   const memberSince = stored.createdAt
     ? new Date(stored.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
     : 'Jan 2026';
+
+  const isLoading = dealsLoading || accountsLoading || contactsLoading;
+  const isError = dealsError || accountsError || contactsError;
+
+  if (isLoading) {
+    return (
+      <div className="flex h-96 items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-emerald-600" />
+          <p className="text-sm font-semibold text-slate-500">Loading profile details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    const errorMsg = dealsError?.message || accountsError?.message || contactsError?.message || 'Failed to fetch profile statistics.';
+    return (
+      <div className="rounded-3xl border border-rose-100 bg-rose-50 p-6 text-center shadow-sm">
+        <p className="text-sm font-bold text-rose-700">Error loading profile data</p>
+        <p className="mt-1.5 text-xs text-rose-500">{String(errorMsg)}</p>
+      </div>
+    );
+  }
 
   return (
     <section className="w-full space-y-6">

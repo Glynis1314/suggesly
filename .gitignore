@@ -18,7 +18,13 @@
 .env.test.local
 .env.production.local
 backend/.env
+.env
+/build
+stderr.log
+build-output.txt
+reconstructed_*.zip
 
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+

@@ -1,7 +1,5 @@
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { useDeals } from '../../context/DealsContext';
-import { useAccounts } from '../../context/AccountsContext';
-import { useContacts } from '../../context/ContactsContext';
 import { getAccountId, getContactId } from '../../utils/recordIds';
 import { formatDateLocal, formatCurrency } from '../../utils/format';
 import EditableCell from '../../components/EditableCell';
@@ -9,18 +7,127 @@ import RecordActivityTabs from '../../components/RecordActivityTabs';
 import AssociationList from '../../components/AssociationList';
 import AISummaryCard from '../../components/AISummaryCard';
 import { dealStageOptions } from '../../data/dealsData';
+import { getDealById, updateDeal } from '../../services/dealApi';
+import { getCompanyById } from '../../services/companyApi';
+import { getContactById } from '../../services/contactApi';
 
 const ownerOptions = ['Alex Rivera', 'Jane Smith', 'Sarah Jenkins', 'Kevin Malone', 'Michael Chen', 'Olivia Lee'];
-
-
 
 export default function DealDetailPage() {
   const { dealId } = useParams();
   const navigate = useNavigate();
-  const { deals, updateDeal } = useDeals();
-  const { accounts } = useAccounts();
-  const { contacts } = useContacts();
-  const deal = deals.find((item) => item.id === dealId);
+  const [deal, setDeal] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [associatedCompany, setAssociatedCompany] = useState(null);
+  const [associatedContacts, setAssociatedContacts] = useState([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchDealData = async () => {
+      try {
+        setLoading(true);
+        const res = await getDealById(dealId);
+        if (!isMounted) return;
+        
+        const dealData = res.data?.data;
+        if (!dealData) {
+          setDeal(null);
+          setLoading(false);
+          return;
+        }
+        
+        setDeal({ ...dealData, id: dealData._id || dealData.id });
+        setError(null);
+        
+        // Fetch company
+        if (dealData.associatedCompany) {
+          if (typeof dealData.associatedCompany === 'object') {
+            setAssociatedCompany(dealData.associatedCompany);
+          } else {
+            try {
+              const compRes = await getCompanyById(dealData.associatedCompany);
+              if (isMounted) setAssociatedCompany(compRes.data?.data);
+            } catch (e) {
+              console.error('Failed to fetch associated company:', e);
+            }
+          }
+        }
+        
+        // Fetch contacts
+        const fetchedContacts = [];
+        if (dealData.primaryContact) {
+          if (typeof dealData.primaryContact === 'object') {
+            fetchedContacts.push(dealData.primaryContact);
+          } else {
+            try {
+              const contactRes = await getContactById(dealData.primaryContact);
+              fetchedContacts.push(contactRes.data?.data);
+            } catch (e) {
+              console.error('Failed to fetch primary contact:', e);
+            }
+          }
+        }
+        
+        if (dealData.associatedContacts && Array.isArray(dealData.associatedContacts)) {
+          for (const c of dealData.associatedContacts) {
+            const id = c?._id || c;
+            const primaryId = dealData.primaryContact?._id || dealData.primaryContact;
+            if (id && id !== primaryId) {
+              if (typeof c === 'object') {
+                fetchedContacts.push(c);
+              } else {
+                try {
+                  const contactRes = await getContactById(id);
+                  fetchedContacts.push(contactRes.data?.data);
+                } catch (e) {
+                  console.error('Failed to fetch associated contact:', e);
+                }
+              }
+            }
+          }
+        }
+        
+        if (isMounted) {
+          setAssociatedContacts(fetchedContacts.filter(Boolean));
+        }
+      } catch (err) {
+        if (isMounted) {
+          setError('Failed to fetch deal details.');
+          console.error(err);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+    fetchDealData();
+    return () => { isMounted = false; };
+  }, [dealId]);
+
+  if (loading) {
+    return (
+      <section className="w-full space-y-6">
+        <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center">
+          <p className="text-2xl font-semibold text-slate-900">Loading...</p>
+        </div>
+      </section>
+    );
+  }
+
+  if (error) {
+    return (
+      <section className="w-full space-y-6">
+        <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center">
+          <p className="text-2xl font-semibold text-rose-500">{error}</p>
+          <Link to="/deals" className="mt-6 inline-flex rounded-xl bg-emerald-700 px-6 py-3 text-xl font-semibold text-white">
+            Back to deals
+          </Link>
+        </div>
+      </section>
+    );
+  }
 
   if (!deal) {
     return (
@@ -36,12 +143,20 @@ export default function DealDetailPage() {
     );
   }
 
-  const save = (field) => (value) => updateDeal(deal.id, { [field]: value });
-
-  const associatedCompany = accounts.find((account) => account.company === deal.associatedCompany);
-  const associatedContacts = contacts.filter((contact) =>
-    (deal.associatedContacts || []).includes(contact.name),
-  );
+  const save = (field) => async (value) => {
+    try {
+      const updatedValue = field === 'dealSize' ? (Number(value) || 0) : value;
+      const res = await updateDeal(dealId, { [field]: updatedValue });
+      const updated = res.data?.data;
+      if (updated) {
+        setDeal({ ...updated, id: updated._id || updated.id });
+      }
+    } catch (err) {
+      console.error('Failed to update deal:', err);
+      const errMsg = err.response?.data?.message || err.message || 'Unknown error';
+      alert(`Failed to update deal: ${errMsg}`);
+    }
+  };
 
   const activities = [
     {
@@ -70,7 +185,7 @@ export default function DealDetailPage() {
             &larr; Deals
           </button>
           <h1 className="mt-2 text-4xl font-semibold text-slate-900">{deal.dealName}</h1>
-          <p className="mt-2 text-lg text-slate-500">{deal.associatedCompany}</p>
+          <p className="mt-2 text-lg text-slate-500">{deal.associatedCompany?.company || deal.associatedCompany || '—'}</p>
         </div>
       </div>
 
@@ -86,7 +201,7 @@ export default function DealDetailPage() {
               <Field label="Deal Value">
                 <EditableCell
                   value={String(deal.dealSize)}
-                  onSave={(value) => updateDeal(deal.id, { dealSize: Number(value) || 0 })}
+                  onSave={save('dealSize')}
                 />
                 <p className="mt-1 text-xs text-slate-400">{formatCurrency(deal.dealSize)}</p>
               </Field>

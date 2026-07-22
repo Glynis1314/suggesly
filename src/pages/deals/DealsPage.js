@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useDeals } from '../../context/DealsContext';
 import { useTableColumns } from '../../utils/useTableColumns';
 import { usePagination } from '../../utils/usePagination';
 import StageBadge from '../../components/StageBadge';
@@ -11,8 +10,9 @@ import TaskListCell from '../../components/TaskListCell';
 import AddDealModal from '../../components/AddDealModal';
 import BulkImportModal from '../../components/BulkImportModal';
 import { dealStageOptions } from '../../data/dealsData';
-import { accountsRows } from '../../data/accountsData';
-import { contactsRows } from '../../data/contactsData';
+import { getDeals, createDeal as createDealApi } from '../../services/dealApi';
+import { getCompanies } from '../../services/companyApi';
+import { getContacts } from '../../services/contactApi';
 
 const dealSampleHeaders = [
   'Deal Name',
@@ -74,7 +74,12 @@ const sortDeals = (deals, key, direction) => {
 
 export default function DealsPage() {
   const navigate = useNavigate();
-  const { deals, createDeal } = useDeals();
+  const [deals, setDeals] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [rawCompanies, setRawCompanies] = useState([]);
+  const [rawContacts, setRawContacts] = useState([]);
+  
   const [showAddDeal, setShowAddDeal] = useState(false);
   const [showBulkImport, setShowBulkImport] = useState(false);
   const globalSearch = '';
@@ -92,6 +97,55 @@ export default function DealsPage() {
   const [dropdownSearch, setDropdownSearch] = useState('');
   const [advancedFilters, setAdvancedFilters] = useState({ country: false, city: false, dealName: false, dealSize: false });
   const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const [dealsRes, compsRes, contactsRes] = await Promise.all([
+          getDeals(),
+          getCompanies(),
+          getContacts()
+        ]);
+        if (isMounted) {
+          const mappedDeals = (dealsRes.data?.data || []).map(d => ({
+            ...d,
+            id: d._id || d.id
+          }));
+          setDeals(mappedDeals);
+          setRawCompanies(compsRes.data?.data || []);
+          setRawContacts(contactsRes.data?.data || []);
+          setError(null);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setError('Failed to fetch data from the server.');
+          console.error(err);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+    fetchData();
+    return () => { isMounted = false; };
+  }, []);
+
+  const createDeal = async (newDeal) => {
+    try {
+      const res = await createDealApi(newDeal);
+      const created = res.data?.data;
+      if (created) {
+        setDeals((prev) => [{ ...created, id: created._id || created.id }, ...prev]);
+      }
+    } catch (err) {
+      console.error('Failed to create deal:', err);
+      const errMsg = err.response?.data?.message || err.message || 'Unknown error';
+      alert(`Failed to create deal: ${errMsg}`);
+    }
+  };
 
   const {
     columns,
@@ -193,7 +247,9 @@ export default function DealsPage() {
   const filteredDeals = useMemo(() => {
     const searchValue = globalSearch.trim().toLowerCase();
     const filtered = deals.filter((deal) => {
-      const globalMatch = [deal.dealName, deal.associatedCompany, deal.primaryContact, deal.dealOwner, deal.source]
+      const associatedCompanyStr = deal.associatedCompany?.company || deal.associatedCompany || '';
+      const primaryContactStr = deal.primaryContact?.name || deal.primaryContact || '';
+      const globalMatch = [deal.dealName, associatedCompanyStr, primaryContactStr, deal.dealOwner, deal.source]
         .some((value) => value?.toLowerCase().includes(searchValue));
       const viewMatch =
         selectedView === 'All Deals'
@@ -334,7 +390,7 @@ export default function DealsPage() {
               >
                 {getDealDisplayName(deal.dealName)}
               </button>
-              <p className={`${secondaryTextClasses} mt-1 block truncate`}>{deal.associatedCompany}</p>
+              <p className={`${secondaryTextClasses} mt-1 block truncate`}>{deal.associatedCompany?.company || deal.associatedCompany || '—'}</p>
             </div>
           </div>
         );
@@ -417,8 +473,8 @@ export default function DealsPage() {
         open={showAddDeal}
         onClose={() => setShowAddDeal(false)}
         stageOptions={dealStageOptions}
-        companyOptions={accountsRows.map((row) => row.company)}
-        contactOptions={contactsRows.map((row) => row.name)}
+        companyOptions={rawCompanies.map((row) => row.company)}
+        contactOptions={rawContacts.map((row) => row.name)}
         onCreate={(newDeal) => {
           createDeal(newDeal);
           setShowAddDeal(false);
@@ -874,21 +930,41 @@ export default function DealsPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredDeals.slice(0, visibleCount).map((deal) => (
-                <tr key={deal.id} className="border-b border-gray-100 hover:bg-slate-50">
-                  {columns.map((col) => (
-                    <td
-                      key={col.id}
-                      style={{ width: `${col.width}px` }}
-                      className={`${cellBaseClasses} ${col.align === 'right' ? 'text-right' : 'text-left'} align-middle overflow-hidden`}
-                    >
-                      <div className="flex h-full items-center min-w-0">
-                        {renderCellContent(deal, col.id)}
-                      </div>
-                    </td>
-                  ))}
+              {loading ? (
+                <tr>
+                  <td colSpan={columns.length} className="px-6 py-12 text-center text-slate-500 font-medium">
+                    Loading deals...
+                  </td>
                 </tr>
-              ))}
+              ) : error ? (
+                <tr>
+                  <td colSpan={columns.length} className="px-6 py-12 text-center text-rose-500 font-medium">
+                    {error}
+                  </td>
+                </tr>
+              ) : filteredDeals.length === 0 ? (
+                <tr>
+                  <td colSpan={columns.length} className="px-6 py-12 text-center text-slate-500 font-medium">
+                    No deals found.
+                  </td>
+                </tr>
+              ) : (
+                filteredDeals.slice(0, visibleCount).map((deal) => (
+                  <tr key={deal.id} className="border-b border-gray-100 hover:bg-slate-50">
+                    {columns.map((col) => (
+                      <td
+                        key={col.id}
+                        style={{ width: `${col.width}px` }}
+                        className={`${cellBaseClasses} ${col.align === 'right' ? 'text-right' : 'text-left'} align-middle overflow-hidden`}
+                      >
+                        <div className="flex h-full items-center min-w-0">
+                          {renderCellContent(deal, col.id)}
+                        </div>
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

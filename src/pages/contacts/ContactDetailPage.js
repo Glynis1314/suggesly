@@ -1,28 +1,132 @@
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { useContacts } from '../../context/ContactsContext';
-import { useAccounts } from '../../context/AccountsContext';
-import { useDeals } from '../../context/DealsContext';
-import { getAccountId, getContactId } from '../../utils/recordIds';
+import { getAccountId } from '../../utils/recordIds';
 import { formatDateLocal, formatCurrency } from '../../utils/format';
 import EditableCell from '../../components/EditableCell';
 import RecordActivityTabs from '../../components/RecordActivityTabs';
 import AssociationList from '../../components/AssociationList';
 import AISummaryCard from '../../components/AISummaryCard';
 import { contactStageOptions } from '../../data/contactsData';
+import { getContactById, updateContact } from '../../services/contactApi';
+import { getCompanyById, getCompanies } from '../../services/companyApi';
+import { getDeals } from '../../services/dealApi';
 
 const ownerOptions = ['Alex Rivera', 'Jane Smith', 'Sarah Jenkins', 'Kevin Malone', 'Michael Chen', 'Olivia Lee'];
 const personaOptions = ['Engineering', 'Marketing', 'Sales'];
 
-
-
 export default function ContactDetailPage() {
   const { contactId } = useParams();
   const navigate = useNavigate();
-  const { contacts, updateContact } = useContacts();
-  const { accounts } = useAccounts();
-  const { deals } = useDeals();
+  const [contact, setContact] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [associatedCompany, setAssociatedCompany] = useState(null);
+  const [associatedDeals, setAssociatedDeals] = useState([]);
 
-  const contact = contacts.find((item) => getContactId(item) === contactId);
+  useEffect(() => {
+    let isMounted = true;
+    const fetchContactData = async () => {
+      try {
+        setLoading(true);
+        const res = await getContactById(contactId);
+        if (!isMounted) return;
+        
+        const contactData = res.data?.data;
+        if (!contactData) {
+          setContact(null);
+          setLoading(false);
+          return;
+        }
+        
+        const mappedContact = {
+          ...contactData,
+          id: contactData._id || contactData.id,
+          created: contactData.createdAt ? new Date(contactData.createdAt).toLocaleDateString('en-US', {
+            month: 'short',
+            day: '2-digit',
+            year: 'numeric'
+          }) : (contactData.created || ''),
+        };
+        setContact(mappedContact);
+        setError(null);
+        
+        // Fetch company
+        if (contactData.company) {
+          if (typeof contactData.company === 'object') {
+            setAssociatedCompany(contactData.company);
+          } else {
+            try {
+              const compRes = await getCompanyById(contactData.company);
+              if (isMounted) setAssociatedCompany(compRes.data?.data);
+            } catch {
+              try {
+                // Fallback search by name
+                const compRes = await getCompanies({ q: contactData.company });
+                const found = compRes.data?.data?.find(c => c.company === contactData.company);
+                if (found && isMounted) setAssociatedCompany(found);
+              } catch (e) {
+                console.error(e);
+              }
+            }
+          }
+        }
+        
+        // Fetch deals
+        try {
+          const dealsRes = await getDeals();
+          if (isMounted) {
+            const allDeals = dealsRes.data?.data || [];
+            const matchedDeals = allDeals.filter(d => {
+              const primaryId = d.primaryContact?._id || d.primaryContact;
+              const currentId = contactData._id || contactData.id;
+              return primaryId === currentId || (d.associatedContacts || []).some(c => (c?._id || c) === currentId);
+            });
+            setAssociatedDeals(mappedDeals(matchedDeals));
+          }
+        } catch (e) {
+          console.error('Failed to fetch deals for contact:', e);
+        }
+        
+      } catch (err) {
+        if (isMounted) {
+          setError('Failed to fetch contact details.');
+          console.error(err);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+    
+    const mappedDeals = (dealsList) => dealsList.map(d => ({ ...d, id: d._id || d.id }));
+    
+    fetchContactData();
+    return () => { isMounted = false; };
+  }, [contactId]);
+
+  if (loading) {
+    return (
+      <section className="w-full space-y-6">
+        <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center">
+          <p className="text-2xl font-semibold text-slate-900">Loading...</p>
+        </div>
+      </section>
+    );
+  }
+
+  if (error) {
+    return (
+      <section className="w-full space-y-6">
+        <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center">
+          <p className="text-2xl font-semibold text-rose-500">{error}</p>
+          <Link to="/contacts" className="mt-6 inline-flex rounded-xl bg-emerald-700 px-6 py-3 text-xl font-semibold text-white">
+            Back to contacts
+          </Link>
+        </div>
+      </section>
+    );
+  }
 
   if (!contact) {
     return (
@@ -38,11 +142,27 @@ export default function ContactDetailPage() {
     );
   }
 
-  const currentId = getContactId(contact);
-  const save = (field) => (value) => updateContact(currentId, { [field]: value });
-
-  const associatedCompany = accounts.find((account) => account.company === contact.company);
-  const associatedDeals = deals.filter((deal) => (deal.associatedContacts || []).includes(contact.name));
+  const save = (field) => async (value) => {
+    try {
+      const res = await updateContact(contactId, { [field]: value });
+      const updated = res.data?.data;
+      if (updated) {
+        setContact({
+          ...updated,
+          id: updated._id || updated.id,
+          created: updated.createdAt ? new Date(updated.createdAt).toLocaleDateString('en-US', {
+            month: 'short',
+            day: '2-digit',
+            year: 'numeric'
+          }) : (updated.created || ''),
+        });
+      }
+    } catch (err) {
+      console.error('Failed to update contact:', err);
+      const errMsg = err.response?.data?.message || err.message || 'Unknown error';
+      alert(`Failed to update contact: ${errMsg}`);
+    }
+  };
 
   const activities = [
     {
@@ -59,6 +179,8 @@ export default function ContactDetailPage() {
     },
   ];
 
+  const companyName = contact.company?.company || contact.company || '—';
+
   return (
     <section className="w-full space-y-6">
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -72,7 +194,7 @@ export default function ContactDetailPage() {
           </button>
           <h1 className="mt-2 text-4xl font-semibold text-slate-900">{contact.name}</h1>
           <p className="mt-2 text-lg text-slate-500">
-            {contact.jobTitle ? `${contact.jobTitle} at ${contact.company}` : contact.company}
+            {contact.jobTitle ? `${contact.jobTitle} at ${companyName}` : companyName}
           </p>
         </div>
       </div>

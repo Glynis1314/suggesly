@@ -98,7 +98,7 @@ export default function SideDrawer({
   drawerOpen,
   onClose,
 }) {
-  const { deals } = useDeals();
+  const { deals, loading } = useDeals();
 
   const closedWonRevenue = React.useMemo(() => {
     return deals
@@ -159,23 +159,28 @@ export default function SideDrawer({
             })}
           </nav>
 
-          {/* Quota Progress Widget */}
           <div className="rounded-xl bg-brand-50 p-4 border border-brand-100 shrink-0">
             <p className="text-xs font-bold uppercase tracking-wider text-brand-800">
               Quota Progress
             </p>
-            <div className="mt-2.5 h-2 w-full rounded-full bg-brand-100 overflow-hidden">
-              <div
-                className="h-full bg-brand-600 rounded-full transition-all duration-500"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-            <div className="mt-2 flex items-center justify-between text-xs font-semibold text-brand-800">
-              <span>{progressPercent}% achieved</span>
-              <span>
-                {formatCurrencyCompact(closedWonRevenue, 1)} / {formatCurrencyCompact(QUOTA_TARGET, 1)}
-              </span>
-            </div>
+            {loading ? (
+              <p className="mt-2 text-[11px] text-brand-600 italic">Loading pipeline data...</p>
+            ) : (
+              <>
+                <div className="mt-2.5 h-2 w-full rounded-full bg-brand-100 overflow-hidden">
+                  <div
+                    className="h-full bg-brand-600 rounded-full transition-all duration-500"
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
+                <div className="mt-2 flex items-center justify-between text-xs font-semibold text-brand-800">
+                  <span>{progressPercent}% achieved</span>
+                  <span>
+                    {formatCurrencyCompact(closedWonRevenue, 1)} / {formatCurrencyCompact(QUOTA_TARGET, 1)}
+                  </span>
+                </div>
+              </>
+            )}
           </div>
         </div>
 

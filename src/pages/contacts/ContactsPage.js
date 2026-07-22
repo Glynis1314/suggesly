@@ -1,16 +1,16 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { contactStageOptions } from '../../data/contactsData';
-import { accountsRows } from '../../data/accountsData';
 import StatCard from '../../components/StatCard';
 import EditableCell from '../../components/EditableCell';
 import AddContactModal from '../../components/AddContactModal';
 import BulkImportModal from '../../components/BulkImportModal';
-import { useContacts } from '../../context/ContactsContext';
 import { getContactId } from '../../utils/recordIds';
 import { useTableColumns } from '../../utils/useTableColumns';
 import { usePagination } from '../../utils/usePagination';
 import { formatDate } from '../../utils/format';
+import { getContacts, createContact as createContactApi, updateContact as updateContactApi } from '../../services/contactApi';
+import { getCompanies } from '../../services/companyApi';
 
 const contactSampleHeaders = [
   'Contact Name',
@@ -50,7 +50,13 @@ function LinkIcon({ className = 'h-5 w-5' }) {
 
 
 export default function ContactsPage() {
-  const { contacts: rows, createContact, importContacts, updateContact } = useContacts();
+  const [contacts, setContacts] = useState([]);
+  const [rawCompanies, setRawCompanies] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const rows = contacts;
+
   const [showAddContact, setShowAddContact] = useState(false);
   const [showBulkImport, setShowBulkImport] = useState(false);
   const [selectedStage, setSelectedStage] = useState('All');
@@ -59,6 +65,121 @@ export default function ContactsPage() {
   const [openDropdown, setOpenDropdown] = useState(null);
   const [sortKey, setSortKey] = useState(null);
   const [sortDirection, setSortDirection] = useState('asc');
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchContactsData = async () => {
+      try {
+        setLoading(true);
+        const [contactsRes, compsRes] = await Promise.all([
+          getContacts(),
+          getCompanies()
+        ]);
+        if (isMounted) {
+          const mapped = (contactsRes.data?.data || []).map((c) => ({
+            ...c,
+            id: c._id || c.id,
+            created: c.createdAt ? new Date(c.createdAt).toLocaleDateString('en-US', {
+              month: 'short',
+              day: '2-digit',
+              year: 'numeric'
+            }) : (c.created || ''),
+          }));
+          setContacts(mapped);
+          setRawCompanies(compsRes.data?.data || []);
+          setError(null);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setError('Failed to fetch contacts.');
+          console.error(err);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+    fetchContactsData();
+    return () => { isMounted = false; };
+  }, []);
+
+  const createContact = async (newContact) => {
+    try {
+      const res = await createContactApi(newContact);
+      const created = res.data?.data;
+      if (created) {
+        setContacts((prev) => [
+          {
+            ...created,
+            id: created._id || created.id,
+            created: created.createdAt ? new Date(created.createdAt).toLocaleDateString('en-US', {
+              month: 'short',
+              day: '2-digit',
+              year: 'numeric'
+            }) : (created.created || ''),
+          },
+          ...prev,
+        ]);
+      }
+    } catch (err) {
+      console.error('Failed to create contact:', err);
+      const errMsg = err.response?.data?.message || err.message || 'Unknown error';
+      alert(`Failed to create contact: ${errMsg}`);
+    }
+  };
+
+  const updateContact = async (id, updatedFields) => {
+    try {
+      const res = await updateContactApi(id, updatedFields);
+      const updated = res.data?.data;
+      if (updated) {
+        setContacts((prev) =>
+          prev.map((c) =>
+            (c.id === id)
+              ? {
+                  ...updated,
+                  id: updated._id || updated.id,
+                  created: updated.createdAt ? new Date(updated.createdAt).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: '2-digit',
+                    year: 'numeric'
+                  }) : (updated.created || ''),
+                }
+              : c
+          )
+        );
+      }
+    } catch (err) {
+      console.error('Failed to update contact:', err);
+      const errMsg = err.response?.data?.message || err.message || 'Unknown error';
+      alert(`Failed to update contact: ${errMsg}`);
+    }
+  };
+
+  const importContacts = async (mapped) => {
+    try {
+      const promises = mapped.map(item => createContactApi(item));
+      const results = await Promise.all(promises);
+      const newContacts = results.map(res => {
+        const c = res.data?.data;
+        return {
+          ...c,
+          id: c._id || c.id,
+          created: c.createdAt ? new Date(c.createdAt).toLocaleDateString('en-US', {
+            month: 'short',
+            day: '2-digit',
+            year: 'numeric'
+          }) : (c.created || ''),
+        };
+      });
+      setContacts((prev) => [...newContacts, ...prev]);
+    } catch (err) {
+      console.error('Failed to import contacts:', err);
+      const errMsg = err.response?.data?.message || err.message || 'Unknown error';
+      alert(`Bulk import failed: ${errMsg}`);
+    }
+  };
 
 
 
@@ -243,7 +364,7 @@ export default function ContactsPage() {
         open={showAddContact}
         onClose={() => setShowAddContact(false)}
         stageOptions={contactStageOptions}
-        companyOptions={accountsRows.map((row) => row.company)}
+        companyOptions={rawCompanies.map((row) => row.company)}
         onCreate={(newContact) => {
           createContact(newContact);
           setShowAddContact(false);
@@ -451,17 +572,37 @@ export default function ContactsPage() {
               </tr>
             </thead>
             <tbody>
-              {sortedAndFiltered.slice(0, visibleCount).map((row) => (
-                <tr key={row.email} className="border-b border-gray-100 align-top hover:bg-slate-50">
-                  {columns.map((col) => (
-                    <td key={col.id} style={{ width: `${col.width}px` }} className="px-5 py-3 align-middle overflow-hidden">
-                      <div className="flex h-full items-center min-w-0">
-                        {renderCellContent(row, col.id)}
-                      </div>
-                    </td>
-                  ))}
+              {loading ? (
+                <tr>
+                  <td colSpan={columns.length} className="px-5 py-12 text-center text-slate-500 font-medium">
+                    Loading contacts...
+                  </td>
                 </tr>
-              ))}
+              ) : error ? (
+                <tr>
+                  <td colSpan={columns.length} className="px-5 py-12 text-center text-rose-500 font-medium">
+                    {error}
+                  </td>
+                </tr>
+              ) : sortedAndFiltered.length === 0 ? (
+                <tr>
+                  <td colSpan={columns.length} className="px-5 py-12 text-center text-slate-500 font-medium">
+                    No contacts found.
+                  </td>
+                </tr>
+              ) : (
+                sortedAndFiltered.slice(0, visibleCount).map((row) => (
+                  <tr key={row.id || row.email} className="border-b border-gray-100 align-top hover:bg-slate-50">
+                    {columns.map((col) => (
+                      <td key={col.id} style={{ width: `${col.width}px` }} className="px-5 py-3 align-middle overflow-hidden">
+                        <div className="flex h-full items-center min-w-0">
+                          {renderCellContent(row, col.id)}
+                        </div>
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
