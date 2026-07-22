@@ -6,7 +6,7 @@ import { useAccounts } from '../../context/AccountsContext';
 import { useContacts } from '../../context/ContactsContext';
 import AddDealModal from '../../components/AddDealModal';
 import { getAccountId } from '../../utils/recordIds';
-import { dealStageOptions } from '../../data/dealsData';
+import { dealStageOptions } from '../../constants/options';
 import FunnelChart from '../../components/FunnelChart';
 
 const FUNNEL_STAGE_ORDER = [

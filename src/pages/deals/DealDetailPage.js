@@ -6,7 +6,7 @@ import EditableCell from '../../components/EditableCell';
 import RecordActivityTabs from '../../components/RecordActivityTabs';
 import AssociationList from '../../components/AssociationList';
 import AISummaryCard from '../../components/AISummaryCard';
-import { dealStageOptions } from '../../data/dealsData';
+import { dealStageOptions } from '../../constants/options';
 import { getDealById, updateDeal } from '../../services/dealApi';
 import { getCompanyById } from '../../services/companyApi';
 import { getContactById } from '../../services/contactApi';

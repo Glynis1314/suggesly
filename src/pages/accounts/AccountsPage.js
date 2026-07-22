@@ -12,7 +12,7 @@ import {
   accountPriorityOptions,
   accountSourceOptions,
   accountEmployeeSizeOptions,
-} from '../../data/accountsData';
+} from '../../constants/options';
 import { getCompanies, createCompany as createCompanyApi, updateCompany as updateCompanyApi } from '../../services/companyApi';
 
 const companySampleHeaders = [

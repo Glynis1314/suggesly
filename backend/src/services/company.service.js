@@ -1,41 +1,27 @@
 const Company = require('../models/company.model');
+const createCrudService = require('./crud.service');
 
-async function createCompany(payload) {
-  const company = await Company.create(payload);
-  return company;
-}
+const crud = createCrudService(Company);
 
 async function getAllCompanies(query = {}) {
   const filter = {};
   if (query.q) {
     filter.company = { $regex: query.q, $options: 'i' };
   }
-  const companies = await Company.find(filter).sort({ createdAt: -1 });
-  return companies;
-}
-
-async function getCompanyById(id) {
-  const company = await Company.findById(id);
-  return company;
-}
-
-async function updateCompany(id, payload) {
-  const company = await Company.findByIdAndUpdate(id, payload, {
-    new: true,
-    runValidators: true,
-  });
-  return company;
-}
-
-async function deleteCompany(id) {
-  const company = await Company.findByIdAndDelete(id);
-  return company;
+  return await crud.getAll(filter);
 }
 
 module.exports = {
-  createCompany,
+  create: crud.create,
+  getAll: getAllCompanies,
+  getById: crud.getById,
+  update: crud.update,
+  delete: crud.delete,
+
+  // Keep original function mappings for backwards compatibility if needed
+  createCompany: crud.create,
   getAllCompanies,
-  getCompanyById,
-  updateCompany,
-  deleteCompany,
+  getCompanyById: crud.getById,
+  updateCompany: crud.update,
+  deleteCompany: crud.delete,
 };

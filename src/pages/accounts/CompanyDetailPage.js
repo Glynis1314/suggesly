@@ -11,7 +11,7 @@ import {
   accountPriorityOptions,
   accountSourceOptions,
   accountEmployeeSizeOptions,
-} from '../../data/accountsData';
+} from '../../constants/options';
 import { getCompanyById, updateCompany } from '../../services/companyApi';
 import { getContactsByCompany, getContacts } from '../../services/contactApi';
 import { getDeals } from '../../services/dealApi';

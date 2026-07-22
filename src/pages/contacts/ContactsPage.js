@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { contactStageOptions } from '../../data/contactsData';
+import { contactStageOptions } from '../../constants/options';
 import StatCard from '../../components/StatCard';
 import EditableCell from '../../components/EditableCell';
 import AddContactModal from '../../components/AddContactModal';

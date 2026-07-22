@@ -1,43 +1,24 @@
 const Contact = require('../models/contact.model');
+const createCrudService = require('./crud.service');
 
-async function createContact(payload) {
-  const contact = await Contact.create(payload);
-  return contact;
-}
-
-async function getAllContacts() {
-  const contacts = await Contact.find().sort({ createdAt: -1 });
-  return contacts;
-}
-
-async function getContactById(id) {
-  const contact = await Contact.findById(id);
-  return contact;
-}
+const crud = createCrudService(Contact);
 
 async function getContactsByCompany(companyId) {
-  const contacts = await Contact.find({ company: companyId }).sort({ createdAt: -1 });
-  return contacts;
-}
-
-async function updateContact(id, payload) {
-  const contact = await Contact.findByIdAndUpdate(id, payload, {
-    new: true,
-    runValidators: true,
-  });
-  return contact;
-}
-
-async function deleteContact(id) {
-  const contact = await Contact.findByIdAndDelete(id);
-  return contact;
+  return await Contact.find({ company: companyId }).sort({ createdAt: -1 });
 }
 
 module.exports = {
-  createContact,
-  getAllContacts,
-  getContactById,
+  create: crud.create,
+  getAll: (query) => crud.getAll(),
+  getById: crud.getById,
+  update: crud.update,
+  delete: crud.delete,
   getContactsByCompany,
-  updateContact,
-  deleteContact,
+
+  // Keep original function mappings for backwards compatibility if needed
+  createContact: crud.create,
+  getAllContacts: () => crud.getAll(),
+  getContactById: crud.getById,
+  updateContact: crud.update,
+  deleteContact: crud.delete,
 };

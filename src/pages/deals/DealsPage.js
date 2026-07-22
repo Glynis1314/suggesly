@@ -9,7 +9,7 @@ import DateCell from '../../components/DateCell';
 import TaskListCell from '../../components/TaskListCell';
 import AddDealModal from '../../components/AddDealModal';
 import BulkImportModal from '../../components/BulkImportModal';
-import { dealStageOptions } from '../../data/dealsData';
+import { dealStageOptions } from '../../constants/options';
 import { getDeals, createDeal as createDealApi } from '../../services/dealApi';
 import { getCompanies } from '../../services/companyApi';
 import { getContacts } from '../../services/contactApi';

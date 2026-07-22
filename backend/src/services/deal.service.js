@@ -1,37 +1,19 @@
 const Deal = require('../models/deal.model');
+const createCrudService = require('./crud.service');
 
-async function createDeal(payload) {
-  const deal = await Deal.create(payload);
-  return deal;
-}
-
-async function getAllDeals() {
-  const deals = await Deal.find().sort({ createdAt: -1 });
-  return deals;
-}
-
-async function getDealById(id) {
-  const deal = await Deal.findById(id);
-  return deal;
-}
-
-async function updateDeal(id, payload) {
-  const deal = await Deal.findByIdAndUpdate(id, payload, {
-    new: true,
-    runValidators: true,
-  });
-  return deal;
-}
-
-async function deleteDeal(id) {
-  const deal = await Deal.findByIdAndDelete(id);
-  return deal;
-}
+const crud = createCrudService(Deal);
 
 module.exports = {
-  createDeal,
-  getAllDeals,
-  getDealById,
-  updateDeal,
-  deleteDeal,
+  create: crud.create,
+  getAll: (query) => crud.getAll(),
+  getById: crud.getById,
+  update: crud.update,
+  delete: crud.delete,
+
+  // Keep original function mappings for backwards compatibility if needed
+  createDeal: crud.create,
+  getAllDeals: () => crud.getAll(),
+  getDealById: crud.getById,
+  updateDeal: crud.update,
+  deleteDeal: crud.delete,
 };
