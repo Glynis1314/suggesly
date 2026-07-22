@@ -219,7 +219,19 @@ export default function AccountsTable({
   };
 
   const modifiedColumns = [
-    { id: 'checkbox', label: '', width: 52, sortable: false },
+    {
+      id: 'checkbox',
+      label: (
+        <input
+          type="checkbox"
+          checked={selectedRows.length === companies.length && companies.length > 0}
+          onChange={toggleSelectAll}
+          className="h-5 w-5 rounded border-slate-300"
+        />
+      ),
+      width: 52,
+      sortable: false,
+    },
     ...columns,
     { id: 'actions', label: 'Actions', width: 72, sortable: false },
   ];

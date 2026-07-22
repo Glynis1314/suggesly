@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import AddCompanyModal from '../../components/AddCompanyModal';
 import BulkImportModal from '../../components/BulkImportModal';
-import { getAccountId } from '../../utils/recordIds';
+
 import { useTableColumns } from '../../utils/useTableColumns';
 import { usePagination } from '../../utils/usePagination';
 import {

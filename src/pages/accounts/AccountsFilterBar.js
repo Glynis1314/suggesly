@@ -9,9 +9,6 @@ function ChevronDownIcon({ className = 'h-3 w-3' }) {
   );
 }
 
-function getPropertyLabel(key, propertyOptions) {
-  return propertyOptions.find((option) => option.key === key)?.label || key;
-}
 
 export default function AccountsFilterBar({
   selectedView,
@@ -69,9 +66,7 @@ export default function AccountsFilterBar({
     setShowFilterBuilder(false);
   };
 
-  const removeFilter = (id) => {
-    setFilters(filters.filter((f) => f.id !== id));
-  };
+
 
   return (
     <div className="mb-6 rounded-2xl border border-slate-300 bg-white p-5">

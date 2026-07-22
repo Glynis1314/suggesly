@@ -72,13 +72,7 @@ export default function DealsPage() {
   const [showAddDeal, setShowAddDeal] = useState(false);
   const [showBulkImport, setShowBulkImport] = useState(false);
 
-  // Advanced filters state for columns visibility
-  const [advancedFilters, setAdvancedFilters] = useState({
-    country: false,
-    city: false,
-    dealName: false,
-    dealSize: false,
-  });
+
 
   useEffect(() => {
     let isMounted = true;

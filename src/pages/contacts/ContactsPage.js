@@ -5,7 +5,7 @@ import BulkImportModal from '../../components/BulkImportModal';
 import { contactStageOptions } from '../../constants/options';
 import { getContacts, createContact as createContactApi, updateContact as updateContactApi } from '../../services/contactApi';
 import { getCompanies } from '../../services/companyApi';
-import { getContactId } from '../../utils/recordIds';
+
 import { useTableColumns } from '../../utils/useTableColumns';
 import { usePagination } from '../../utils/usePagination';
 import ContactsFilterBar from './ContactsFilterBar';
