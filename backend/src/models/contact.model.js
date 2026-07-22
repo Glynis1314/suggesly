@@ -21,7 +21,7 @@ const contactSchema = new mongoose.Schema(
     company: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Company',
-      required: true,
+      default: null,
     },
     jobTitle: {
       type: String,
@@ -46,7 +46,7 @@ const contactSchema = new mongoose.Schema(
     },
     stage: {
       type: String,
-      enum: ['New', 'Contacted', 'Qualified', 'Proposal', 'Negotiation', 'Won', 'Lost'],
+      enum: ['New', 'Contacted', 'Qualified', 'Proposal', 'Negotiation', 'Won', 'Lost', 'CUSTOMER', 'QUALIFIED', 'LEAD', 'NURTURING', 'CLOSED LOST'],
       default: 'New',
     },
     country: {

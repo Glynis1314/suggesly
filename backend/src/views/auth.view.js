@@ -1,6 +1,6 @@
 const express = require('express');
 const authService = require('../services/auth.service');
-const { sendSuccess, sendError } = require('./account.view');
+const { sendSuccess, sendError } = require('./response.view');
 
 const router = express.Router();
 

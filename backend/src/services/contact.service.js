@@ -41,6 +41,14 @@ async function resolvePayload(payload) {
   }
   if (cleanPayload.company) {
     cleanPayload.company = await resolveCompany(cleanPayload.company, true);
+  } else {
+    cleanPayload.company = null;
+  }
+  if (cleanPayload.createdBy) {
+    cleanPayload.createdBy = await resolveUser(cleanPayload.createdBy);
+  }
+  if (cleanPayload.updatedBy) {
+    cleanPayload.updatedBy = await resolveUser(cleanPayload.updatedBy);
   }
   return cleanPayload;
 }
@@ -89,7 +97,7 @@ async function bulkImportContacts(rows) {
       continue;
     }
 
-    const ownerId = await resolveUser(ownerName);
+    const ownerId = await resolveUser(ownerName, false);
     if (!ownerId) {
       errors.push({
         row: rowNumber,

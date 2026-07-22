@@ -3,19 +3,29 @@ const User = require('../models/user.model');
 const Company = require('../models/company.model');
 const Contact = require('../models/contact.model');
 
-async function resolveUser(name) {
+async function resolveUser(name, autoCreate = true) {
   if (!name) return null;
   const cleanName = name.toString().trim();
   if (mongoose.Types.ObjectId.isValid(cleanName)) return cleanName;
 
   const parts = cleanName.split(/\s+/);
   const first = parts[0] || '';
-  const last = parts.slice(1).join(' ') || '';
+  const last = parts.slice(1).join(' ') || 'User';
 
-  const user = await User.findOne({
+  let user = await User.findOne({
     firstName: { $regex: new RegExp(`^${first}$`, 'i') },
     lastName: { $regex: new RegExp(`^${last}$`, 'i') },
   });
+
+  if (!user && autoCreate) {
+    user = await User.create({
+      firstName: first,
+      lastName: last,
+      email: `${first.toLowerCase()}.${last.toLowerCase()}@example.com`,
+      password: 'password123',
+    });
+  }
+
   return user ? user._id : null;
 }
 

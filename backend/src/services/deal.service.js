@@ -48,12 +48,22 @@ async function resolvePayload(payload) {
   }
   if (cleanPayload.associatedCompany) {
     cleanPayload.associatedCompany = await resolveCompany(cleanPayload.associatedCompany, true);
+  } else {
+    cleanPayload.associatedCompany = null;
   }
   if (cleanPayload.primaryContact) {
     cleanPayload.primaryContact = await resolveContact(cleanPayload.primaryContact, true);
+  } else {
+    cleanPayload.primaryContact = null;
   }
   if (!cleanPayload.currency) {
     cleanPayload.currency = 'USD';
+  }
+  if (cleanPayload.createdBy) {
+    cleanPayload.createdBy = await resolveUser(cleanPayload.createdBy);
+  }
+  if (cleanPayload.updatedBy) {
+    cleanPayload.updatedBy = await resolveUser(cleanPayload.updatedBy);
   }
   return cleanPayload;
 }
@@ -93,7 +103,7 @@ async function bulkImportDeals(rows) {
       continue;
     }
 
-    const ownerId = await resolveUser(ownerName);
+    const ownerId = await resolveUser(ownerName, false);
     if (!ownerId) {
       errors.push({
         row: rowNumber,

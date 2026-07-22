@@ -25,7 +25,7 @@ const dealSchema = new mongoose.Schema(
     },
     dealStage: {
       type: String,
-      enum: ['Lead', 'New', 'Qualified', 'Proposal', 'Negotiation', 'Contacted', 'Closed Won', 'Closed Lost'],
+      enum: ['Lead', 'New', 'Qualified', 'Proposal', 'Negotiation', 'Contacted', 'Closed Won', 'Closed Lost', 'Deal Created', 'POC', 'Nurture'],
       default: 'New',
     },
     dealValue: {

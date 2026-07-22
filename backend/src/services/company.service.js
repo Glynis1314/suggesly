@@ -59,7 +59,7 @@ async function bulkImportCompanies(rows) {
       continue;
     }
 
-    const ownerId = await resolveUser(ownerName);
+    const ownerId = await resolveUser(ownerName, false);
     if (!ownerId) {
       errors.push({
         row: rowNumber,
