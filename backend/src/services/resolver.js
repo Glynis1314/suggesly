@@ -7,7 +7,15 @@ async function resolveUser(name) {
   if (!name) return null;
   const cleanName = name.toString().trim();
   if (mongoose.Types.ObjectId.isValid(cleanName)) return cleanName;
-  const user = await User.findOne({ name: { $regex: new RegExp(`^${cleanName}$`, 'i') } });
+
+  const parts = cleanName.split(/\s+/);
+  const first = parts[0] || '';
+  const last = parts.slice(1).join(' ') || '';
+
+  const user = await User.findOne({
+    firstName: { $regex: new RegExp(`^${first}$`, 'i') },
+    lastName: { $regex: new RegExp(`^${last}$`, 'i') },
+  });
   return user ? user._id : null;
 }
 

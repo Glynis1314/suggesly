@@ -3,7 +3,7 @@ const createCrudService = require('./crud.service');
 const { resolveUser, resolveCompany, resolveContact } = require('./resolver');
 
 const populateOptions = [
-  { path: 'dealOwner', select: 'name email' },
+  { path: 'owner', select: 'firstName lastName email' },
   { path: 'associatedCompany', select: 'company site' },
   { path: 'primaryContact', select: 'firstName lastName name email' },
 ];
@@ -20,10 +20,14 @@ const transformFn = (obj) => {
     }
   }
 
+  const ownerName = obj.owner ? `${obj.owner.firstName || ''} ${obj.owner.lastName || ''}`.trim() : '';
+  const companyName = obj.associatedCompany?.company || '';
+
   return {
     ...obj,
-    dealOwner: obj.dealOwner?.name || (typeof obj.dealOwner === 'string' ? obj.dealOwner : ''),
-    associatedCompany: obj.associatedCompany?.company || (typeof obj.associatedCompany === 'string' ? obj.associatedCompany : ''),
+    dealOwner: ownerName || (typeof obj.owner === 'string' ? obj.owner : ''),
+    dealSize: obj.dealValue || 0,
+    associatedCompany: companyName || (typeof obj.associatedCompany === 'string' ? obj.associatedCompany : ''),
     primaryContact: primaryContactName,
   };
 };
@@ -33,7 +37,14 @@ const crud = createCrudService(Deal, populateOptions, transformFn);
 async function resolvePayload(payload) {
   const cleanPayload = { ...payload };
   if (cleanPayload.dealOwner) {
-    cleanPayload.dealOwner = await resolveUser(cleanPayload.dealOwner);
+    cleanPayload.owner = await resolveUser(cleanPayload.dealOwner);
+    delete cleanPayload.dealOwner;
+  } else if (cleanPayload.owner) {
+    cleanPayload.owner = await resolveUser(cleanPayload.owner);
+  }
+  if (cleanPayload.dealSize !== undefined) {
+    cleanPayload.dealValue = Number(cleanPayload.dealSize) || 0;
+    delete cleanPayload.dealSize;
   }
   if (cleanPayload.associatedCompany) {
     cleanPayload.associatedCompany = await resolveCompany(cleanPayload.associatedCompany, true);
@@ -118,14 +129,15 @@ async function bulkImportDeals(rows) {
 
     const payload = {
       dealName: dealName.toString().trim(),
-      dealSize: Number(dealValue) || 0,
+      dealValue: Number(dealValue) || 0,
       currency: currency.toString().trim(),
-      dealOwner: ownerId,
+      owner: ownerId,
       dealStage: dealStage.toString().trim(),
       associatedCompany: companyId,
       primaryContact: contactId,
-      source: row['Deal Source'] || row['source'] || '',
-      remarks: row['Notes'] || row['notes'] || row['remarks'] || '',
+      dealSource: row['Deal Source'] || row['source'] || '',
+      notes: row['Notes'] || row['notes'] || row['remarks'] || '',
+      expectedCloseDate: row['Expected Close Date'] ? new Date(row['Expected Close Date']) : null,
     };
 
     try {

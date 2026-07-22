@@ -16,6 +16,53 @@ async function connectDB() {
     const collections = await mongoose.connection.db.listCollections().toArray();
     const collectionNames = collections.map(col => col.name);
     console.log('Collections in database:', collectionNames);
+
+    // Startup migration check for User model (split name to firstName + lastName)
+    try {
+      const User = mongoose.model('User');
+      const usersToMigrate = await User.find({
+        $or: [
+          { firstName: { $exists: false } },
+          { firstName: '' }
+        ]
+      });
+      for (const user of usersToMigrate) {
+        const rawName = user.get('name') || '';
+        if (rawName) {
+          const parts = rawName.trim().split(/\s+/);
+          user.firstName = parts[0] || '';
+          user.lastName = parts.slice(1).join(' ') || ' ';
+          await user.save();
+          console.log(`[Migration] Migrated User "${rawName}" to firstName="${user.firstName}", lastName="${user.lastName}"`);
+        }
+      }
+    } catch (migErr) {
+      console.warn('[Migration Warn] Failed User migration:', migErr.message);
+    }
+
+    // Startup migration check for Contact model (split name to firstName + lastName)
+    try {
+      const Contact = mongoose.model('Contact');
+      const contactsToMigrate = await Contact.find({
+        $or: [
+          { firstName: { $exists: false } },
+          { firstName: '' }
+        ]
+      });
+      for (const contact of contactsToMigrate) {
+        const rawName = contact.get('name') || '';
+        if (rawName) {
+          const parts = rawName.trim().split(/\s+/);
+          contact.firstName = parts[0] || '';
+          contact.lastName = parts.slice(1).join(' ') || ' ';
+          await contact.save();
+          console.log(`[Migration] Migrated Contact "${rawName}" to firstName="${contact.firstName}", lastName="${contact.lastName}"`);
+        }
+      }
+    } catch (migErr) {
+      console.warn('[Migration Warn] Failed Contact migration:', migErr.message);
+    }
+
   } catch (error) {
     console.error('MongoDB connection failed:');
     console.error(`Error Name: ${error.name}`);
@@ -29,4 +76,3 @@ async function connectDB() {
 }
 
 module.exports = connectDB;
-

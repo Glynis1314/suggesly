@@ -2,13 +2,14 @@ const Company = require('../models/company.model');
 const createCrudService = require('./crud.service');
 const { resolveUser } = require('./resolver');
 
-const populateOptions = [{ path: 'owner', select: 'name email' }];
+const populateOptions = [{ path: 'owner', select: 'firstName lastName email' }];
 
 const transformFn = (obj) => {
   if (!obj) return null;
+  const ownerName = obj.owner ? `${obj.owner.firstName || ''} ${obj.owner.lastName || ''}`.trim() : '';
   return {
     ...obj,
-    owner: obj.owner?.name || (typeof obj.owner === 'string' ? obj.owner : ''),
+    owner: ownerName || (typeof obj.owner === 'string' ? obj.owner : ''),
   };
 };
 

@@ -3,7 +3,7 @@ const createCrudService = require('./crud.service');
 const { resolveUser, resolveCompany } = require('./resolver');
 
 const populateOptions = [
-  { path: 'owner', select: 'name email' },
+  { path: 'owner', select: 'firstName lastName email' },
   { path: 'company', select: 'company site' },
 ];
 
@@ -13,14 +13,16 @@ const transformFn = (obj) => {
   const first = obj.firstName ? obj.firstName.charAt(0) : '';
   const last = obj.lastName ? obj.lastName.charAt(0) : '';
   const initials = `${first}${last}`.toUpperCase() || obj.initials || '?';
+  const ownerName = obj.owner ? `${obj.owner.firstName || ''} ${obj.owner.lastName || ''}`.trim() : '';
+  const companyName = obj.company?.company || '';
 
   return {
     ...obj,
     name,
     initials,
-    owner: obj.owner?.name || (typeof obj.owner === 'string' ? obj.owner : ''),
-    company: obj.company?.company || (typeof obj.company === 'string' ? obj.company : ''),
-    associatedCompany: obj.company?.company || (typeof obj.company === 'string' ? obj.company : ''),
+    owner: ownerName || (typeof obj.owner === 'string' ? obj.owner : ''),
+    company: companyName || (typeof obj.company === 'string' ? obj.company : ''),
+    associatedCompany: companyName || (typeof obj.company === 'string' ? obj.company : ''),
   };
 };
 

@@ -8,8 +8,13 @@ async function register(payload) {
     throw new Error('User already exists');
   }
 
+  const parts = (payload.name || '').trim().split(/\s+/);
+  const firstName = parts[0] || '';
+  const lastName = parts.slice(1).join(' ') || ' ';
+
   const user = await User.create({
-    name: payload.name,
+    firstName,
+    lastName,
     email,
     password: payload.password,
   });

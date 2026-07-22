@@ -16,6 +16,14 @@ const companySchema = new mongoose.Schema({
   custom: { type: mongoose.Schema.Types.Mixed, default: {} },
   employeeSize: { type: String, trim: true, default: '' },
   linkedin: { type: String, trim: true, default: '' },
-}, { timestamps: true });
+}, {
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
+
+companySchema.virtual('companyName').get(function () {
+  return this.company;
+});
 
 module.exports = mongoose.model('Company', companySchema);
