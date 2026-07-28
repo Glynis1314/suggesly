@@ -26,6 +26,7 @@
   },
   "scripts": {
     "start": "npm run frontend",
+    "start:prod": "node backend/src/server.js",
     "frontend": "set PORT=3001&& react-scripts start",
     "backend": "node backend/src/server.js",
     "backend:dev": "nodemon backend/src/server.js",

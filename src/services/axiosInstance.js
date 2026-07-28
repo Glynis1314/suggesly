@@ -1,8 +1,8 @@
 import axios from 'axios';
 
 // Read the base URL from the environment variable (standard REACT_APP_ prefix for React CLI)
-// Fallback to local backend port 5000 in development
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000/api';
+// Fallback to local backend port 5000 in development, or relative url in production
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || (process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:5000/api');
 
 /**
  * Configure and export an Axios instance with pre-configured headers,
