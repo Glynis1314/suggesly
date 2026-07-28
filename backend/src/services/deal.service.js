@@ -78,7 +78,8 @@ async function update(id, payload) {
   return await crud.update(id, resolved);
 }
 
-async function bulkImportDeals(rows) {
+async function bulkImportDeals(rowsInput) {
+  const rows = Array.isArray(rowsInput) ? rowsInput : (rowsInput && rowsInput.rows) || [];
   let insertedCount = 0;
   let skippedCount = 0;
   const errors = [];

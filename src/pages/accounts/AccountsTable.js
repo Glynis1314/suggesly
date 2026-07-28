@@ -62,11 +62,23 @@ export default function AccountsTable({
     );
   };
 
+  const selectAll = companies.length > 0 && companies.every((row) => selectedRows.includes(getAccountId(row)));
+
   const toggleSelectAll = () => {
-    if (selectedRows.length === companies.length) {
-      setSelectedRows([]);
+    if (selectAll) {
+      const currentIds = companies.map((row) => getAccountId(row));
+      setSelectedRows((current) => current.filter((id) => !currentIds.includes(id)));
     } else {
-      setSelectedRows(companies.map((row) => getAccountId(row)));
+      const currentIds = companies.map((row) => getAccountId(row));
+      setSelectedRows((current) => {
+        const next = [...current];
+        currentIds.forEach((id) => {
+          if (!next.includes(id)) {
+            next.push(id);
+          }
+        });
+        return next;
+      });
     }
   };
 
@@ -224,9 +236,9 @@ export default function AccountsTable({
       label: (
         <input
           type="checkbox"
-          checked={selectedRows.length === companies.length && companies.length > 0}
+          checked={selectAll}
           onChange={toggleSelectAll}
-          className="h-5 w-5 rounded border-slate-300"
+          className="h-5 w-5 rounded border-slate-300 shrink-0"
         />
       ),
       width: 52,

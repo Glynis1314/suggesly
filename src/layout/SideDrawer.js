@@ -106,7 +106,7 @@ export default function SideDrawer({
       .reduce((sum, d) => sum + (Number(d.dealSize) || 0), 0);
   }, [deals]);
 
-  const QUOTA_TARGET = 2400000; // Quota target $2.4M
+  const QUOTA_TARGET = 2400000; // Quota target $2.4M // TODO: replace with real quota target once a Quota/Target field exists
   const progressPercent = Math.min(100, Math.round((closedWonRevenue / QUOTA_TARGET) * 100));
 
   return (

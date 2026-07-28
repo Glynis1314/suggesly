@@ -71,7 +71,8 @@ async function getContactsByCompany(companyId) {
   return docs.map(transformFn);
 }
 
-async function bulkImportContacts(rows) {
+async function bulkImportContacts(rowsInput) {
+  const rows = Array.isArray(rowsInput) ? rowsInput : (rowsInput && rowsInput.rows) || [];
   let insertedCount = 0;
   let skippedCount = 0;
   const errors = [];

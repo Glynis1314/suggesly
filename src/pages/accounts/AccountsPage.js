@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import AddCompanyModal from '../../components/AddCompanyModal';
 import BulkImportModal from '../../components/BulkImportModal';
 
@@ -10,7 +10,7 @@ import {
   accountSourceOptions,
   accountEmployeeSizeOptions,
 } from '../../constants/options';
-import { getCompanies, createCompany as createCompanyApi, updateCompany as updateCompanyApi } from '../../services/companyApi';
+import { useAccounts } from '../../context/AccountsContext';
 import AccountsFilterBar from './AccountsFilterBar';
 import AccountsTable from './AccountsTable';
 
@@ -90,9 +90,14 @@ function parseDate(value) {
 }
 
 export default function AccountsPage() {
-  const [companies, setCompanies] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const {
+    accounts: rawAccounts,
+    loading,
+    error,
+    createAccount,
+    importAccounts,
+    updateAccount,
+  } = useAccounts();
 
   const [showAddCompany, setShowAddCompany] = useState(false);
   const [showBulkImport, setShowBulkImport] = useState(false);
@@ -112,64 +117,23 @@ export default function AccountsPage() {
   const [sortKey, setSortKey] = useState('createdDate');
   const [sortDirection, setSortDirection] = useState('desc');
 
-  useEffect(() => {
-    let isMounted = true;
-    const fetchCompaniesData = async () => {
-      try {
-        setLoading(true);
-        const res = await getCompanies();
-        if (isMounted) {
-          const mapped = (res.data?.data || []).map((c) => ({
-            ...c,
-            id: c._id || c.id,
-            createdDate: c.createdAt
-              ? new Date(c.createdAt).toLocaleDateString('en-US', {
-                month: 'short',
-                day: '2-digit',
-                year: 'numeric',
-              })
-              : c.createdDate || '',
-          }));
-          setCompanies(mapped);
-          setError(null);
-        }
-      } catch (err) {
-        if (isMounted) {
-          setError('Failed to fetch companies.');
-          console.error(err);
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
-    fetchCompaniesData();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  const companies = useMemo(() => {
+    return (rawAccounts || []).map((c) => ({
+      ...c,
+      id: c._id || c.id,
+      createdDate: c.createdAt
+        ? new Date(c.createdAt).toLocaleDateString('en-US', {
+            month: 'short',
+            day: '2-digit',
+            year: 'numeric',
+          })
+        : c.createdDate || '',
+    }));
+  }, [rawAccounts]);
 
-  const createAccount = async (newCompany) => {
+  const handleCreateAccount = async (newCompany) => {
     try {
-      const res = await createCompanyApi(newCompany);
-      const created = res.data?.data;
-      if (created) {
-        setCompanies((prev) => [
-          {
-            ...created,
-            id: created._id || created.id,
-            createdDate: created.createdAt
-              ? new Date(created.createdAt).toLocaleDateString('en-US', {
-                month: 'short',
-                day: '2-digit',
-                year: 'numeric',
-              })
-              : created.createdDate || '',
-          },
-          ...prev,
-        ]);
-      }
+      await createAccount(newCompany);
     } catch (err) {
       console.error('Failed to create company:', err);
       const errMsg = err.response?.data?.message || err.message || 'Unknown error';
@@ -177,29 +141,9 @@ export default function AccountsPage() {
     }
   };
 
-  const updateAccount = async (id, updatedFields) => {
+  const handleUpdateAccount = async (id, updatedFields) => {
     try {
-      const res = await updateCompanyApi(id, updatedFields);
-      const updated = res.data?.data;
-      if (updated) {
-        setCompanies((prev) =>
-          prev.map((c) =>
-            c.id === id
-              ? {
-                ...updated,
-                id: updated._id || updated.id,
-                createdDate: updated.createdAt
-                  ? new Date(updated.createdAt).toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: '2-digit',
-                    year: 'numeric',
-                  })
-                  : updated.createdDate || '',
-              }
-              : c
-          )
-        );
-      }
+      await updateAccount(id, updatedFields);
     } catch (err) {
       console.error('Failed to update company:', err);
       const errMsg = err.response?.data?.message || err.message || 'Unknown error';
@@ -207,25 +151,9 @@ export default function AccountsPage() {
     }
   };
 
-  const importAccounts = async (mapped) => {
+  const handleImportAccounts = async (mapped) => {
     try {
-      const promises = mapped.map((item) => createCompanyApi(item));
-      const results = await Promise.all(promises);
-      const newCompanies = results.map((res) => {
-        const c = res.data?.data;
-        return {
-          ...c,
-          id: c._id || c.id,
-          createdDate: c.createdAt
-            ? new Date(c.createdAt).toLocaleDateString('en-US', {
-              month: 'short',
-              day: '2-digit',
-              year: 'numeric',
-            })
-            : c.createdDate || '',
-        };
-      });
-      setCompanies((prev) => [...newCompanies, ...prev]);
+      await importAccounts(mapped);
     } catch (err) {
       console.error('Failed to import companies:', err);
       const errMsg = err.response?.data?.message || err.message || 'Unknown error';
@@ -414,7 +342,7 @@ export default function AccountsPage() {
         sourceOptions={accountSourceOptions}
         employeeSizeOptions={accountEmployeeSizeOptions}
         onCreate={(newCompany) => {
-          createAccount(newCompany);
+          handleCreateAccount(newCompany);
           setShowAddCompany(false);
         }}
       />
@@ -444,7 +372,7 @@ export default function AccountsPage() {
             employeeSize: row['Employee Size'] || '',
             linkedin: row['LinkedIn URL'] || '',
           }));
-          importAccounts(mapped);
+          handleImportAccounts(mapped);
           setShowBulkImport(false);
         }}
       />
@@ -494,7 +422,7 @@ export default function AccountsPage() {
         visibleCount={visibleCount}
         loadMore={loadMore}
         ownerOptions={ownerOptions}
-        updateAccount={updateAccount}
+        updateAccount={handleUpdateAccount}
       />
     </section>
   );

@@ -8,10 +8,10 @@ export function slugify(value) {
 
 export function getAccountId(account) {
   if (!account) return '';
-  return account._id || account.id || account.companyId || slugify(account.company);
+  return account._id || account.companyId || slugify(account.company);
 }
 
 export function getContactId(contact) {
   if (!contact) return '';
-  return contact._id || contact.id || contact.contactId || slugify(contact.email || contact.name);
+  return contact._id || contact.contactId || slugify(contact.email || contact.name);
 }

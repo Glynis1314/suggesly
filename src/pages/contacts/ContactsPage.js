@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import StatCard from '../../components/StatCard';
 import AddContactModal from '../../components/AddContactModal';
 import BulkImportModal from '../../components/BulkImportModal';
 import { contactStageOptions } from '../../constants/options';
-import { getContacts, createContact as createContactApi, updateContact as updateContactApi } from '../../services/contactApi';
-import { getCompanies } from '../../services/companyApi';
+import { useContacts } from '../../context/ContactsContext';
+import { useAccounts } from '../../context/AccountsContext';
 
 import { useTableColumns } from '../../utils/useTableColumns';
 import { usePagination } from '../../utils/usePagination';
@@ -37,10 +37,23 @@ const formatDate = (date) => {
 };
 
 export default function ContactsPage() {
-  const [contacts, setContacts] = useState([]);
-  const [rawCompanies, setRawCompanies] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const {
+    contacts: rawContacts,
+    loading: contactsLoading,
+    error: contactsError,
+    createContact,
+    importContacts,
+    updateContact,
+  } = useContacts();
+
+  const {
+    accounts: rawCompanies,
+    loading: accountsLoading,
+    error: accountsError,
+  } = useAccounts();
+
+  const loading = contactsLoading || accountsLoading;
+  const error = contactsError || accountsError;
 
   const [showAddContact, setShowAddContact] = useState(false);
   const [showBulkImport, setShowBulkImport] = useState(false);
@@ -54,72 +67,25 @@ export default function ContactsPage() {
   const [sortKey, setSortKey] = useState(null);
   const [sortDirection, setSortDirection] = useState('asc');
 
-  useEffect(() => {
-    let isMounted = true;
-    const fetchContactsData = async () => {
-      try {
-        setLoading(true);
-        const [contactsRes, compsRes] = await Promise.all([
-          getContacts(),
-          getCompanies(),
-        ]);
-        if (isMounted) {
-          const mapped = (contactsRes.data?.data || []).map((c) => ({
-            ...c,
-            id: c._id || c.id,
-            initials: String(c.name || '?')
-              .trim()
-              .split(/\s+/)
-              .map((part) => part[0])
-              .join('')
-              .slice(0, 2)
-              .toUpperCase(),
-            created: c.createdAt ? formatDate(c.createdAt) : c.created || '',
-            activity: c.updatedAt ? formatDate(c.updatedAt) : c.activity || '',
-          }));
-          setContacts(mapped);
-          setRawCompanies(compsRes.data?.data || []);
-          setError(null);
-        }
-      } catch (err) {
-        if (isMounted) {
-          setError('Failed to load contacts.');
-          console.error(err);
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
-    fetchContactsData();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  const contacts = useMemo(() => {
+    return (rawContacts || []).map((c) => ({
+      ...c,
+      id: c._id || c.id,
+      initials: String(c.name || '?')
+        .trim()
+        .split(/\s+/)
+        .map((part) => part[0])
+        .join('')
+        .slice(0, 2)
+        .toUpperCase(),
+      created: c.createdAt ? formatDate(c.createdAt) : c.created || '',
+      activity: c.updatedAt ? formatDate(c.updatedAt) : c.activity || '',
+    }));
+  }, [rawContacts]);
 
-  const createContact = async (newContact) => {
+  const handleCreateContact = async (newContact) => {
     try {
-      const res = await createContactApi(newContact);
-      const created = res.data?.data;
-      if (created) {
-        setContacts((prev) => [
-          {
-            ...created,
-            id: created._id || created.id,
-            initials: String(created.name || '?')
-              .trim()
-              .split(/\s+/)
-              .map((part) => part[0])
-              .join('')
-              .slice(0, 2)
-              .toUpperCase(),
-            created: created.createdAt ? formatDate(created.createdAt) : created.created || '',
-            activity: created.updatedAt ? formatDate(created.updatedAt) : created.activity || '',
-          },
-          ...prev,
-        ]);
-      }
+      await createContact(newContact);
     } catch (err) {
       console.error('Failed to create contact:', err);
       const errMsg = err.response?.data?.message || err.message || 'Unknown error';
@@ -127,31 +93,9 @@ export default function ContactsPage() {
     }
   };
 
-  const updateContact = async (id, updatedFields) => {
+  const handleUpdateContact = async (id, updatedFields) => {
     try {
-      const res = await updateContactApi(id, updatedFields);
-      const updated = res.data?.data;
-      if (updated) {
-        setContacts((prev) =>
-          prev.map((c) =>
-            c.id === id
-              ? {
-                  ...updated,
-                  id: updated._id || updated.id,
-                  initials: String(updated.name || '?')
-                    .trim()
-                    .split(/\s+/)
-                    .map((part) => part[0])
-                    .join('')
-                    .slice(0, 2)
-                    .toUpperCase(),
-                  created: updated.createdAt ? formatDate(updated.createdAt) : updated.created || '',
-                  activity: updated.updatedAt ? formatDate(updated.updatedAt) : updated.activity || '',
-                }
-              : c
-          )
-        );
-      }
+      await updateContact(id, updatedFields);
     } catch (err) {
       console.error('Failed to update contact:', err);
       const errMsg = err.response?.data?.message || err.message || 'Unknown error';
@@ -159,27 +103,9 @@ export default function ContactsPage() {
     }
   };
 
-  const importContacts = async (mapped) => {
+  const handleImportContacts = async (mapped) => {
     try {
-      const promises = mapped.map((item) => createContactApi(item));
-      const results = await Promise.all(promises);
-      const newContacts = results.map((res) => {
-        const c = res.data?.data;
-        return {
-          ...c,
-          id: c._id || c.id,
-          initials: String(c.name || '?')
-            .trim()
-            .split(/\s+/)
-            .map((part) => part[0])
-            .join('')
-            .slice(0, 2)
-            .toUpperCase(),
-          created: c.createdAt ? formatDate(c.createdAt) : c.created || '',
-          activity: c.updatedAt ? formatDate(c.updatedAt) : c.activity || '',
-        };
-      });
-      setContacts((prev) => [...newContacts, ...prev]);
+      await importContacts(mapped);
     } catch (err) {
       console.error('Failed to import contacts:', err);
       const errMsg = err.response?.data?.message || err.message || 'Unknown error';
@@ -289,7 +215,7 @@ export default function ContactsPage() {
         stageOptions={contactStageOptions}
         companyOptions={rawCompanies.map((row) => row.company)}
         onCreate={(newContact) => {
-          createContact(newContact);
+          handleCreateContact(newContact);
           setShowAddContact(false);
         }}
       />
@@ -339,7 +265,7 @@ export default function ContactsPage() {
               modifiedDate: today,
             };
           });
-          importContacts(mapped);
+          handleImportContacts(mapped);
           setShowBulkImport(false);
         }}
       />
@@ -382,7 +308,7 @@ export default function ContactsPage() {
         handleDrop={handleDrop}
         visibleCount={visibleCount}
         loadMore={loadMore}
-        updateContact={updateContact}
+        updateContact={handleUpdateContact}
       />
     </section>
   );

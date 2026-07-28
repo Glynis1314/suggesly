@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { getContactId } from '../utils/recordIds';
-import { getContacts, createContact as createContactApi, updateContact as updateContactApi } from '../services/contactApi';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import axios from 'axios';
+
+const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000/api';
 
 const ContactsContext = createContext(null);
 
@@ -9,45 +10,31 @@ export function ContactsProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    let isMounted = true;
-    async function fetchContacts() {
-      try {
-        setLoading(true);
-        const res = await getContacts();
-        if (isMounted) {
-          const mapped = (res.data?.data || []).map((c) => ({
-            ...c,
-            id: c._id || c.id,
-          }));
-          setContacts(mapped);
-          setError(null);
-        }
-      } catch (err) {
-        if (isMounted) {
-          console.error('Failed to fetch contacts in context:', err);
-          setError(err);
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
+  const fetchContacts = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await axios.get(`${API_BASE}/contacts`);
+      setContacts(res.data?.data || []);
+    } catch (err) {
+      console.error('Failed to load contacts in context:', err);
+      setError(err.response?.data?.message || err.message || 'Failed to load contacts');
+    } finally {
+      setLoading(false);
     }
-    fetchContacts();
-    return () => {
-      isMounted = false;
-    };
   }, []);
 
-  const createContact = async (contactData) => {
+  useEffect(() => {
+    fetchContacts();
+  }, [fetchContacts]);
+
+  const createContact = async (payload) => {
     try {
-      const res = await createContactApi(contactData);
+      const res = await axios.post(`${API_BASE}/contacts`, payload);
       const created = res.data?.data;
       if (created) {
-        const mapped = { ...created, id: created._id || created.id };
-        setContacts((previous) => [mapped, ...previous]);
-        return mapped;
+        setContacts((current) => [created, ...current]);
+        return created;
       }
     } catch (err) {
       console.error('Error creating contact in context:', err);
@@ -55,21 +42,24 @@ export function ContactsProvider({ children }) {
     }
   };
 
-  const importContacts = (newContacts) => {
-    const mapped = newContacts.map((c) => ({ ...c, id: c._id || c.id }));
-    setContacts((previous) => [...mapped, ...previous]);
+  const importContacts = async (rows) => {
+    try {
+      const res = await axios.post(`${API_BASE}/contacts/bulk-import`, { rows });
+      await fetchContacts(); // re-fetch rather than guess at inserted shape
+      return res.data?.data; // { insertedCount, skippedCount, errors }
+    } catch (err) {
+      console.error('Error importing contacts in context:', err);
+      throw err;
+    }
   };
 
-  const updateContact = async (contactId, updates) => {
+  const updateContact = async (id, updates) => {
     try {
-      const res = await updateContactApi(contactId, updates);
+      const res = await axios.put(`${API_BASE}/contacts/${id}`, updates);
       const updated = res.data?.data;
       if (updated) {
-        const mapped = { ...updated, id: updated._id || updated.id };
-        setContacts((previous) =>
-          previous.map((contact) => (getContactId(contact) === contactId ? mapped : contact)),
-        );
-        return mapped;
+        setContacts((current) => current.map((c) => (c._id === id ? updated : c)));
+        return updated;
       }
     } catch (err) {
       console.error('Error updating contact in context:', err);
@@ -77,8 +67,29 @@ export function ContactsProvider({ children }) {
     }
   };
 
+  const deleteContact = async (id) => {
+    try {
+      await axios.delete(`${API_BASE}/contacts/${id}`);
+      setContacts((current) => current.filter((c) => c._id !== id));
+    } catch (err) {
+      console.error('Error deleting contact in context:', err);
+      throw err;
+    }
+  };
+
   return (
-    <ContactsContext.Provider value={{ contacts, loading, error, createContact, importContacts, updateContact }}>
+    <ContactsContext.Provider
+      value={{
+        contacts,
+        loading,
+        error,
+        createContact,
+        importContacts,
+        updateContact,
+        deleteContact,
+        refetch: fetchContacts,
+      }}
+    >
       {children}
     </ContactsContext.Provider>
   );

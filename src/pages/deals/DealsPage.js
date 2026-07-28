@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import StatCard from '../../components/StatCard';
 import AddDealModal from '../../components/AddDealModal';
 import BulkImportModal from '../../components/BulkImportModal';
 import { dealStageOptions } from '../../constants/options';
-import { getDeals, createDeal as createDealApi } from '../../services/dealApi';
-import { getCompanies } from '../../services/companyApi';
-import { getContacts } from '../../services/contactApi';
+import { useDeals } from '../../context/DealsContext';
+import { useAccounts } from '../../context/AccountsContext';
+import { useContacts } from '../../context/ContactsContext';
 import { usePagination } from '../../utils/usePagination';
 import { useTableColumns } from '../../utils/useTableColumns';
 import DealsFilterBar from './DealsFilterBar';
@@ -47,11 +47,28 @@ const sortDeals = (dealsList, key, direction) => {
 };
 
 export default function DealsPage() {
-  const [deals, setDeals] = useState([]);
-  const [rawCompanies, setRawCompanies] = useState([]);
-  const [rawContacts, setRawContacts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const {
+    deals: rawDeals,
+    loading: dealsLoading,
+    error: dealsError,
+    createDeal,
+    importDeals,
+  } = useDeals();
+
+  const {
+    accounts: rawCompanies,
+    loading: accountsLoading,
+    error: accountsError,
+  } = useAccounts();
+
+  const {
+    contacts: rawContacts,
+    loading: contactsLoading,
+    error: contactsError,
+  } = useContacts();
+
+  const loading = dealsLoading || accountsLoading || contactsLoading;
+  const error = dealsError || accountsError || contactsError;
 
   // Filter States
   const [globalSearch, setGlobalSearch] = useState('');
@@ -72,57 +89,30 @@ export default function DealsPage() {
   const [showAddDeal, setShowAddDeal] = useState(false);
   const [showBulkImport, setShowBulkImport] = useState(false);
 
+  const deals = useMemo(() => {
+    return (rawDeals || []).map((d) => ({
+      ...d,
+      id: d._id || d.id,
+    }));
+  }, [rawDeals]);
 
-
-  useEffect(() => {
-    let isMounted = true;
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const [dealsRes, companiesRes, contactsRes] = await Promise.all([
-          getDeals(),
-          getCompanies(),
-          getContacts(),
-        ]);
-
-        if (isMounted) {
-          const mappedDeals = (dealsRes.data?.data || []).map((d) => ({
-            ...d,
-            id: d._id || d.id,
-          }));
-          setDeals(mappedDeals);
-          setRawCompanies(companiesRes.data?.data || []);
-          setRawContacts(contactsRes.data?.data || []);
-          setError(null);
-        }
-      } catch (err) {
-        if (isMounted) {
-          setError('Failed to fetch data from the server.');
-          console.error(err);
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
-    fetchData();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  const createDeal = async (newDeal) => {
+  const handleCreateDeal = async (newDeal) => {
     try {
-      const res = await createDealApi(newDeal);
-      const created = res.data?.data;
-      if (created) {
-        setDeals((prev) => [{ ...created, id: created._id || created.id }, ...prev]);
-      }
+      await createDeal(newDeal);
     } catch (err) {
       console.error('Failed to create deal:', err);
       const errMsg = err.response?.data?.message || err.message || 'Unknown error';
       alert(`Failed to create deal: ${errMsg}`);
+    }
+  };
+
+  const handleImportDeals = async (mapped) => {
+    try {
+      await importDeals(mapped);
+    } catch (err) {
+      console.error('Failed to import deals:', err);
+      const errMsg = err.response?.data?.message || err.message || 'Unknown error';
+      alert(`Bulk import failed: ${errMsg}`);
     }
   };
 
@@ -386,7 +376,7 @@ export default function DealsPage() {
         companyOptions={rawCompanies.map((row) => row.company)}
         contactOptions={rawContacts.map((row) => row.name)}
         onCreate={(newDeal) => {
-          createDeal(newDeal);
+          handleCreateDeal(newDeal);
           setShowAddDeal(false);
         }}
       />
@@ -399,36 +389,22 @@ export default function DealsPage() {
         sampleHeaders={dealSampleHeaders}
         requiredFields={['Deal Name', 'Associated Company', 'Deal Value', 'Deal Owner', 'Deal Stage']}
         onImport={(importedRows) => {
-          importedRows.forEach((row, index) => {
-            const now = new Date().toISOString();
-            createDeal({
-              id: `${(row['Deal Name'] || 'deal').replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase()}-${Date.now()}-${index}`,
-              dealName: row['Deal Name'] || '',
-              dealSize: Number(row['Deal Value']) || 0,
-              dealOwner: row['Deal Owner'] || '',
-              dealSourceOwner: '',
-              dealSourceOwnerName: '',
-              dealStage: row['Deal Stage'] || '',
-              dealCreatedDate: now,
-              lastActivityDate: now,
-              remarks: row['Deal Notes'] || '',
-              associatedCompany: row['Associated Company'] || '',
-              primaryContact: (row['Associated Contacts'] || '').split(',')[0]?.trim() || '',
-              associatedContacts: (row['Associated Contacts'] || '')
-                .split(',')
-                .map((item) => item.trim())
-                .filter(Boolean),
-              expectedCloseDate: row['Expected Close Date'] || '',
-              dealProbability: 0,
-              lostReason: row['Lost Reason'] || '',
-              wonReason: row['Won Reason'] || '',
-              nextAction: row['Next Step'] || '',
-              nextStepDueDate: row['Next Step Due Date'] || '',
-              country: '',
-              city: '',
-              source: row['Deal Source'] || '',
-            });
-          });
+          const mapped = importedRows.map((row) => ({
+            'Deal Name': row['Deal Name'] || '',
+            'Associated Company': row['Associated Company'] || '',
+            'Deal Value': row['Deal Value'] || '',
+            'Deal Owner': row['Deal Owner'] || '',
+            'Deal Stage': row['Deal Stage'] || '',
+            'Expected Close Date': row['Expected Close Date'] || '',
+            'Lost Reason': row['Lost Reason'] || '',
+            'Won Reason': row['Won Reason'] || '',
+            'Next Step': row['Next Step'] || '',
+            'Next Step Due Date': row['Next Step Due Date'] || '',
+            'Deal Source': row['Deal Source'] || '',
+            'Deal Notes': row['Deal Notes'] || '',
+            'Associated Contacts': row['Associated Contacts'] || '',
+          }));
+          handleImportDeals(mapped);
           setShowBulkImport(false);
         }}
       />

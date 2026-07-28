@@ -39,23 +39,29 @@ export default function DataTable({
                   } ${
                     dragOverColIndex === index ? 'bg-slate-100 border-l-2 border-l-emerald-500' : ''
                   }`}
-                  draggable
-                  onDragStart={(e) => handleDragStart(index, e)}
-                  onDragOver={(e) => handleDragOver(index, e)}
-                  onDrop={(e) => handleDrop(index, e)}
+                  draggable={col.id !== 'checkbox' && col.id !== 'actions'}
+                  onDragStart={(e) => col.id !== 'checkbox' && col.id !== 'actions' && handleDragStart(index, e)}
+                  onDragOver={(e) => col.id !== 'checkbox' && col.id !== 'actions' && handleDragOver(index, e)}
+                  onDrop={(e) => col.id !== 'checkbox' && col.id !== 'actions' && handleDrop(index, e)}
                 >
                   <div className="flex items-center justify-between">
-                    <span
-                      onClick={() => col.sortable && onSort && onSort(col.sortKey)}
-                      className={`truncate cursor-grab active:cursor-grabbing font-semibold flex-grow flex items-center gap-1 ${
-                        col.align === 'right' ? 'justify-end' : 'justify-start'
-                      }`}
-                    >
-                      {col.label}
-                      {col.sortable && sortKey === col.sortKey && (
-                        <span className="text-[10px]">{sortDirection === 'asc' ? '▲' : '▼'}</span>
-                      )}
-                    </span>
+                    {col.id === 'checkbox' || col.id === 'actions' ? (
+                      <span className="font-semibold text-slate-500 flex items-center">
+                        {col.label}
+                      </span>
+                    ) : (
+                      <span
+                        onClick={() => col.sortable && onSort && onSort(col.sortKey)}
+                        className={`truncate cursor-grab active:cursor-grabbing font-semibold flex-grow flex items-center gap-1 ${
+                          col.align === 'right' ? 'justify-end' : 'justify-start'
+                        }`}
+                      >
+                        {col.label}
+                        {col.sortable && sortKey === col.sortKey && (
+                          <span className="text-[10px]">{sortDirection === 'asc' ? '▲' : '▼'}</span>
+                        )}
+                      </span>
+                    )}
                     <div
                       onMouseDown={(e) => handleResizeStart(index, e)}
                       className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize opacity-0 group-hover:opacity-100 hover:opacity-100 bg-slate-300 active:bg-emerald-500 transition-opacity"
@@ -68,11 +74,21 @@ export default function DataTable({
           </thead>
           <tbody>
             {loading ? (
-              <tr>
-                <td colSpan={columns.length} className="px-6 py-12 text-center text-slate-500 font-medium">
-                  {loadingMessage}
-                </td>
-              </tr>
+              Array.from({ length: 5 }).map((_, rIdx) => (
+                <tr key={rIdx} className="border-b border-slate-200">
+                  {columns.map((col) => (
+                    <td key={col.id} className="px-5 py-4 align-middle">
+                      {col.id === 'checkbox' ? (
+                        <div className="h-5 w-5 bg-slate-200 rounded animate-pulse" />
+                      ) : col.id === 'actions' ? (
+                        <div className="h-4 w-6 bg-slate-200 rounded animate-pulse" />
+                      ) : (
+                        <div className="h-4 bg-slate-200 rounded animate-pulse w-3/4" />
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              ))
             ) : error ? (
               <tr>
                 <td colSpan={columns.length} className="px-6 py-12 text-center text-rose-500 font-medium">

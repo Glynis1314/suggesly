@@ -37,7 +37,8 @@ async function getAllCompanies(query = {}) {
   return await crud.getAll(filter);
 }
 
-async function bulkImportCompanies(rows) {
+async function bulkImportCompanies(rowsInput) {
+  const rows = Array.isArray(rowsInput) ? rowsInput : (rowsInput && rowsInput.rows) || [];
   let insertedCount = 0;
   let skippedCount = 0;
   const errors = [];

@@ -1,5 +1,7 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { getDeals, createDeal as createDealApi, updateDeal as updateDealApi } from '../services/dealApi';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import axios from 'axios';
+
+const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000/api';
 
 const DealsContext = createContext(null);
 
@@ -8,45 +10,31 @@ export function DealsProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    let isMounted = true;
-    async function fetchDeals() {
-      try {
-        setLoading(true);
-        const res = await getDeals();
-        if (isMounted) {
-          const mapped = (res.data?.data || []).map((d) => ({
-            ...d,
-            id: d._id || d.id,
-          }));
-          setDeals(mapped);
-          setError(null);
-        }
-      } catch (err) {
-        if (isMounted) {
-          console.error('Failed to fetch deals in context:', err);
-          setError(err);
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
+  const fetchDeals = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await axios.get(`${API_BASE}/deals`);
+      setDeals(res.data?.data || []);
+    } catch (err) {
+      console.error('Failed to load deals in context:', err);
+      setError(err.response?.data?.message || err.message || 'Failed to load deals');
+    } finally {
+      setLoading(false);
     }
-    fetchDeals();
-    return () => {
-      isMounted = false;
-    };
   }, []);
 
-  const createDeal = async (dealData) => {
+  useEffect(() => {
+    fetchDeals();
+  }, [fetchDeals]);
+
+  const createDeal = async (payload) => {
     try {
-      const res = await createDealApi(dealData);
+      const res = await axios.post(`${API_BASE}/deals`, payload);
       const created = res.data?.data;
       if (created) {
-        const mapped = { ...created, id: created._id || created.id };
-        setDeals((previousDeals) => [mapped, ...previousDeals]);
-        return mapped;
+        setDeals((current) => [created, ...current]);
+        return created;
       }
     } catch (err) {
       console.error('Error creating deal in context:', err);
@@ -54,20 +42,26 @@ export function DealsProvider({ children }) {
     }
   };
 
+  const importDeals = async (rows) => {
+    try {
+      const res = await axios.post(`${API_BASE}/deals/bulk-import`, { rows });
+      await fetchDeals(); // re-fetch rather than guess at inserted shape
+      return res.data?.data; // { insertedCount, skippedCount, errors }
+    } catch (err) {
+      console.error('Error importing deals in context:', err);
+      throw err;
+    }
+  };
+
   const updateDeal = async (updatedDeal) => {
-    const id = updatedDeal.id || updatedDeal._id;
+    const id = updatedDeal._id || updatedDeal.id;
     if (!id) return;
     try {
-      const res = await updateDealApi(id, updatedDeal);
+      const res = await axios.put(`${API_BASE}/deals/${id}`, updatedDeal);
       const savedDeal = res.data?.data;
       if (savedDeal) {
-        const mapped = { ...savedDeal, id: savedDeal._id || savedDeal.id };
-        setDeals((previousDeals) =>
-          previousDeals.map((deal) =>
-            (deal.id === id || deal._id === id) ? mapped : deal
-          ),
-        );
-        return mapped;
+        setDeals((current) => current.map((d) => (d._id === id ? savedDeal : d)));
+        return savedDeal;
       }
     } catch (err) {
       console.error('Error updating deal in context:', err);
@@ -75,8 +69,29 @@ export function DealsProvider({ children }) {
     }
   };
 
+  const deleteDeal = async (id) => {
+    try {
+      await axios.delete(`${API_BASE}/deals/${id}`);
+      setDeals((current) => current.filter((d) => d._id !== id));
+    } catch (err) {
+      console.error('Error deleting deal in context:', err);
+      throw err;
+    }
+  };
+
   return (
-    <DealsContext.Provider value={{ deals, loading, error, createDeal, updateDeal }}>
+    <DealsContext.Provider
+      value={{
+        deals,
+        loading,
+        error,
+        createDeal,
+        importDeals,
+        updateDeal,
+        deleteDeal,
+        refetch: fetchDeals,
+      }}
+    >
       {children}
     </DealsContext.Provider>
   );
@@ -84,10 +99,8 @@ export function DealsProvider({ children }) {
 
 export function useDeals() {
   const context = useContext(DealsContext);
-
   if (!context) {
     throw new Error('useDeals must be used within a DealsProvider');
   }
-
   return context;
 }
