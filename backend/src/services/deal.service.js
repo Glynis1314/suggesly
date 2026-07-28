@@ -104,21 +104,21 @@ async function bulkImportDeals(rowsInput) {
       continue;
     }
 
-    const ownerId = await resolveUser(ownerName, false);
+    const ownerId = await resolveUser(ownerName, true);
     if (!ownerId) {
       errors.push({
         row: rowNumber,
-        reason: `Owner '${ownerName}' not found — please add this user first`,
+        reason: `Owner '${ownerName}' not found and could not be created`,
       });
       skippedCount++;
       continue;
     }
 
-    const companyId = await resolveCompany(associatedCompany, false);
+    const companyId = await resolveCompany(associatedCompany, true);
     if (!companyId) {
       errors.push({
         row: rowNumber,
-        reason: `Company '${associatedCompany}' not found — please create this company first`,
+        reason: `Company '${associatedCompany}' not found and could not be created`,
       });
       skippedCount++;
       continue;
@@ -127,11 +127,11 @@ async function bulkImportDeals(rowsInput) {
     let contactId = null;
     const associatedContact = row['Associated Contact'] || row['primaryContact'] || '';
     if (associatedContact) {
-      contactId = await resolveContact(associatedContact, false);
+      contactId = await resolveContact(associatedContact, true);
       if (!contactId) {
         errors.push({
           row: rowNumber,
-          reason: `Contact '${associatedContact}' not found`,
+          reason: `Contact '${associatedContact}' not found and could not be created`,
         });
         skippedCount++;
         continue;
@@ -146,9 +146,11 @@ async function bulkImportDeals(rowsInput) {
       dealStage: dealStage.toString().trim(),
       associatedCompany: companyId,
       primaryContact: contactId,
-      dealSource: row['Deal Source'] || row['source'] || '',
+      dealSource: row['Deal Source'] || row['source'] || row['dealSource'] || '',
       notes: row['Notes'] || row['notes'] || row['remarks'] || '',
-      expectedCloseDate: row['Expected Close Date'] ? new Date(row['Expected Close Date']) : null,
+      nextSteps: row['Next Step'] || row['nextStep'] || row['nextSteps'] || '',
+      nextActionDate: row['Next Action Date'] || row['nextActionDate'] || '',
+      lastActivityDate: row['Last Activity Date'] || row['lastActivityDate'] || '',
     };
 
     try {

@@ -153,7 +153,19 @@ export default function AccountsPage() {
 
   const handleImportAccounts = async (mapped) => {
     try {
-      await importAccounts(mapped);
+      const result = await importAccounts(mapped);
+      if (result) {
+        const { insertedCount, skippedCount, errors } = result;
+        let msg = `Import complete!\n- Successfully imported: ${insertedCount} companies`;
+        if (skippedCount > 0) {
+          msg += `\n- Skipped: ${skippedCount} companies`;
+        }
+        if (errors && errors.length > 0) {
+          const errorDetails = errors.map(e => `Row ${e.row}: ${e.reason}`).slice(0, 5).join('\n');
+          msg += `\n\nTop Errors:\n${errorDetails}${errors.length > 5 ? `\n...and ${errors.length - 5} more.` : ''}`;
+        }
+        alert(msg);
+      }
     } catch (err) {
       console.error('Failed to import companies:', err);
       const errMsg = err.response?.data?.message || err.message || 'Unknown error';

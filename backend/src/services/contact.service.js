@@ -98,21 +98,21 @@ async function bulkImportContacts(rowsInput) {
       continue;
     }
 
-    const ownerId = await resolveUser(ownerName, false);
+    const ownerId = await resolveUser(ownerName, true);
     if (!ownerId) {
       errors.push({
         row: rowNumber,
-        reason: `Owner '${ownerName}' not found — please add this user first`,
+        reason: `Owner '${ownerName}' not found and could not be created`,
       });
       skippedCount++;
       continue;
     }
 
-    const companyId = await resolveCompany(companyName, false);
+    const companyId = await resolveCompany(companyName, true);
     if (!companyId) {
       errors.push({
         row: rowNumber,
-        reason: `Company '${companyName}' not found — please create this company first`,
+        reason: `Company '${companyName}' not found and could not be created`,
       });
       skippedCount++;
       continue;
@@ -128,9 +128,9 @@ async function bulkImportContacts(rowsInput) {
       phone: row['Phone Number'] || row['Contact Phone Number'] || row['phone'] || '',
       linkedin: row['Linkedin'] || row['Contact LinkedIn'] || row['linkedin'] || '',
       stage: stage.toString().trim(),
-      country: row['Country'] || row['Contact Country'] || '',
-      city: row['City'] || row['Contact City'] || '',
-      notes: row['Notes'] || '',
+      country: row['Country'] || row['Contact Country'] || row['country'] || '',
+      city: row['City'] || row['Contact City'] || row['city'] || '',
+      notes: row['Notes'] || row['notes'] || '',
     };
 
     try {

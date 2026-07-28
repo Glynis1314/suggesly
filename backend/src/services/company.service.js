@@ -60,11 +60,11 @@ async function bulkImportCompanies(rowsInput) {
       continue;
     }
 
-    const ownerId = await resolveUser(ownerName, false);
+    const ownerId = await resolveUser(ownerName, true);
     if (!ownerId) {
       errors.push({
         row: rowNumber,
-        reason: `Owner '${ownerName}' not found — please add this user first`,
+        reason: `Owner '${ownerName}' not found and could not be created`,
       });
       skippedCount++;
       continue;
@@ -74,17 +74,17 @@ async function bulkImportCompanies(rowsInput) {
       company: companyName.toString().trim(),
       owner: ownerId,
       stage: stage.toString().trim(),
-      site: row['Site'] || row['site'] || row['Linkedin URL'] || row['LinkedIn URL'] || '',
-      source: row['Source'] ? [row['Source']] : [],
-      priority: row['Priority'] || '',
-      country: row['Country'] || '',
-      city: row['City'] || '',
-      employeeSize: row['Employee Size'] || '',
-      linkedin: row['Linkedin URL'] || row['LinkedIn URL'] || '',
-      notes: row['Notes'] || '',
-      nextSteps: row['Next Step'] || row['Next Steps'] || '',
-      nextActionDate: row['Next Action Date'] || '',
-      lastActivityDate: row['Last Activity Date'] || '',
+      site: row['Site'] || row['site'] || row['Linkedin URL'] || row['LinkedIn URL'] || row['linkedin'] || '',
+      source: row['Source'] ? (Array.isArray(row['Source']) ? row['Source'] : [row['Source']]) : (row['source'] ? (Array.isArray(row['source']) ? row['source'] : [row['source']]) : []),
+      priority: row['Priority'] || row['priority'] || '',
+      country: row['Country'] || row['country'] || '',
+      city: row['City'] || row['city'] || '',
+      employeeSize: row['Employee Size'] || row['employeeSize'] || '',
+      linkedin: row['Linkedin URL'] || row['LinkedIn URL'] || row['linkedin'] || '',
+      notes: row['Notes'] || row['notes'] || '',
+      nextSteps: row['Next Step'] || row['Next Steps'] || row['nextSteps'] || '',
+      nextActionDate: row['Next Action Date'] || row['nextActionDate'] || '',
+      lastActivityDate: row['Last Activity Date'] || row['lastActivityDate'] || '',
     };
 
     try {
