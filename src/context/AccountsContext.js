@@ -1,7 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
-
-const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000/api';
+import axiosInstance from '../services/axiosInstance';
 
 const AccountsContext = createContext(null);
 
@@ -14,7 +12,7 @@ export function AccountsProvider({ children }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await axios.get(`${API_BASE}/companies`);
+      const res = await axiosInstance.get('/companies');
       setAccounts(res.data?.data || []);
     } catch (err) {
       console.error('Failed to load companies in context:', err);
@@ -30,7 +28,7 @@ export function AccountsProvider({ children }) {
 
   const createAccount = async (payload) => {
     try {
-      const res = await axios.post(`${API_BASE}/companies`, payload);
+      const res = await axiosInstance.post('/companies', payload);
       const created = res.data?.data;
       if (created) {
         setAccounts((current) => [created, ...current]);
@@ -44,7 +42,7 @@ export function AccountsProvider({ children }) {
 
   const importAccounts = async (rows) => {
     try {
-      const res = await axios.post(`${API_BASE}/companies/bulk-import`, { rows });
+      const res = await axiosInstance.post('/companies/bulk-import', { rows });
       await fetchAccounts(); // re-fetch rather than guess at inserted shape
       return res.data?.data; // { insertedCount, skippedCount, errors }
     } catch (err) {
@@ -55,7 +53,7 @@ export function AccountsProvider({ children }) {
 
   const updateAccount = async (id, updates) => {
     try {
-      const res = await axios.put(`${API_BASE}/companies/${id}`, updates);
+      const res = await axiosInstance.put(`/companies/${id}`, updates);
       const updated = res.data?.data;
       if (updated) {
         setAccounts((current) => current.map((a) => (a._id === id ? updated : a)));
@@ -69,7 +67,7 @@ export function AccountsProvider({ children }) {
 
   const deleteAccount = async (id) => {
     try {
-      await axios.delete(`${API_BASE}/companies/${id}`);
+      await axiosInstance.delete(`/companies/${id}`);
       setAccounts((current) => current.filter((a) => a._id !== id));
     } catch (err) {
       console.error('Error deleting company in context:', err);

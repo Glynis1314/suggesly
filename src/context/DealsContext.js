@@ -1,7 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
-
-const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000/api';
+import axiosInstance from '../services/axiosInstance';
 
 const DealsContext = createContext(null);
 
@@ -14,7 +12,7 @@ export function DealsProvider({ children }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await axios.get(`${API_BASE}/deals`);
+      const res = await axiosInstance.get('/deals');
       setDeals(res.data?.data || []);
     } catch (err) {
       console.error('Failed to load deals in context:', err);
@@ -30,7 +28,7 @@ export function DealsProvider({ children }) {
 
   const createDeal = async (payload) => {
     try {
-      const res = await axios.post(`${API_BASE}/deals`, payload);
+      const res = await axiosInstance.post('/deals', payload);
       const created = res.data?.data;
       if (created) {
         setDeals((current) => [created, ...current]);
@@ -44,7 +42,7 @@ export function DealsProvider({ children }) {
 
   const importDeals = async (rows) => {
     try {
-      const res = await axios.post(`${API_BASE}/deals/bulk-import`, { rows });
+      const res = await axiosInstance.post('/deals/bulk-import', { rows });
       await fetchDeals(); // re-fetch rather than guess at inserted shape
       return res.data?.data; // { insertedCount, skippedCount, errors }
     } catch (err) {
@@ -57,7 +55,7 @@ export function DealsProvider({ children }) {
     const id = updatedDeal._id || updatedDeal.id;
     if (!id) return;
     try {
-      const res = await axios.put(`${API_BASE}/deals/${id}`, updatedDeal);
+      const res = await axiosInstance.put(`/deals/${id}`, updatedDeal);
       const savedDeal = res.data?.data;
       if (savedDeal) {
         setDeals((current) => current.map((d) => (d._id === id ? savedDeal : d)));
@@ -71,7 +69,7 @@ export function DealsProvider({ children }) {
 
   const deleteDeal = async (id) => {
     try {
-      await axios.delete(`${API_BASE}/deals/${id}`);
+      await axiosInstance.delete(`/deals/${id}`);
       setDeals((current) => current.filter((d) => d._id !== id));
     } catch (err) {
       console.error('Error deleting deal in context:', err);

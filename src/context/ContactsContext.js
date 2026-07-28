@@ -1,7 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
-
-const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000/api';
+import axiosInstance from '../services/axiosInstance';
 
 const ContactsContext = createContext(null);
 
@@ -14,7 +12,7 @@ export function ContactsProvider({ children }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await axios.get(`${API_BASE}/contacts`);
+      const res = await axiosInstance.get('/contacts');
       setContacts(res.data?.data || []);
     } catch (err) {
       console.error('Failed to load contacts in context:', err);
@@ -30,7 +28,7 @@ export function ContactsProvider({ children }) {
 
   const createContact = async (payload) => {
     try {
-      const res = await axios.post(`${API_BASE}/contacts`, payload);
+      const res = await axiosInstance.post('/contacts', payload);
       const created = res.data?.data;
       if (created) {
         setContacts((current) => [created, ...current]);
@@ -44,7 +42,7 @@ export function ContactsProvider({ children }) {
 
   const importContacts = async (rows) => {
     try {
-      const res = await axios.post(`${API_BASE}/contacts/bulk-import`, { rows });
+      const res = await axiosInstance.post('/contacts/bulk-import', { rows });
       await fetchContacts(); // re-fetch rather than guess at inserted shape
       return res.data?.data; // { insertedCount, skippedCount, errors }
     } catch (err) {
@@ -55,7 +53,7 @@ export function ContactsProvider({ children }) {
 
   const updateContact = async (id, updates) => {
     try {
-      const res = await axios.put(`${API_BASE}/contacts/${id}`, updates);
+      const res = await axiosInstance.put(`/contacts/${id}`, updates);
       const updated = res.data?.data;
       if (updated) {
         setContacts((current) => current.map((c) => (c._id === id ? updated : c)));
@@ -69,7 +67,7 @@ export function ContactsProvider({ children }) {
 
   const deleteContact = async (id) => {
     try {
-      await axios.delete(`${API_BASE}/contacts/${id}`);
+      await axiosInstance.delete(`/contacts/${id}`);
       setContacts((current) => current.filter((c) => c._id !== id));
     } catch (err) {
       console.error('Error deleting contact in context:', err);
