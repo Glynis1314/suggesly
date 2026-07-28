@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 
 const authRoutes = require('./routes/auth.routes');
 const companyRoutes = require('./routes/company.routes');
@@ -29,5 +30,15 @@ app.use('/api/auth', authRoutes);
 app.use('/api/companies', companyRoutes);
 app.use('/api/contacts', contactRoutes);
 app.use('/api/deals', dealRoutes);
+
+// Serve static assets in production
+if (process.env.NODE_ENV === 'production') {
+  // Set static folder
+  app.use(express.static(path.join(__dirname, '../../build')));
+
+  app.get('/*splat', (req, res) => {
+    res.sendFile(path.resolve(__dirname, '../../', 'build', 'index.html'));
+  });
+}
 
 module.exports = app;
