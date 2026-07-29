@@ -52,7 +52,7 @@ async function resolvePayload(payload) {
     cleanPayload.associatedCompany = null;
   }
   if (cleanPayload.primaryContact) {
-    cleanPayload.primaryContact = await resolveContact(cleanPayload.primaryContact, true);
+    cleanPayload.primaryContact = await resolveContact(cleanPayload.primaryContact, true, cleanPayload.owner);
   } else {
     cleanPayload.primaryContact = null;
   }
@@ -90,7 +90,7 @@ async function bulkImportDeals(rowsInput) {
 
     const dealName = row['Deal Name'] || row['dealName'] || '';
     const associatedCompany = row['Associated Company'] || row['associatedCompany'] || '';
-    const ownerName = row['Owner'] || row['owner'] || '';
+    const ownerName = row['Owner'] || row['owner'] || row['Deal Owner'] || row['dealOwner'] || '';
     const dealStage = row['Deal Stage'] || row['dealStage'] || '';
     const dealValue = row['Deal Value'] || row['dealValue'] || row['dealSize'] || '';
     const currency = row['Currency'] || row['currency'] || 'USD';
@@ -125,9 +125,9 @@ async function bulkImportDeals(rowsInput) {
     }
 
     let contactId = null;
-    const associatedContact = row['Associated Contact'] || row['primaryContact'] || '';
+    const associatedContact = row['Associated Contact'] || row['associatedContact'] || row['primaryContact'] || row['Associated Contacts'] || row['associatedContacts'] || '';
     if (associatedContact) {
-      contactId = await resolveContact(associatedContact, true);
+      contactId = await resolveContact(associatedContact, true, ownerId);
       if (!contactId) {
         errors.push({
           row: rowNumber,
@@ -147,10 +147,11 @@ async function bulkImportDeals(rowsInput) {
       associatedCompany: companyId,
       primaryContact: contactId,
       dealSource: row['Deal Source'] || row['source'] || row['dealSource'] || '',
-      notes: row['Notes'] || row['notes'] || row['remarks'] || '',
+      notes: row['Notes'] || row['notes'] || row['remarks'] || row['Deal Notes'] || row['dealNotes'] || '',
       nextSteps: row['Next Step'] || row['nextStep'] || row['nextSteps'] || '',
-      nextActionDate: row['Next Action Date'] || row['nextActionDate'] || '',
+      nextActionDate: row['Next Action Date'] || row['nextActionDate'] || row['Next Step Due Date'] || row['nextStepDueDate'] || '',
       lastActivityDate: row['Last Activity Date'] || row['lastActivityDate'] || '',
+      expectedCloseDate: row['Expected Close Date'] || row['expectedCloseDate'] || null,
     };
 
     try {

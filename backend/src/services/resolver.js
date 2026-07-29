@@ -40,7 +40,7 @@ async function resolveCompany(name, autoCreate = true) {
   return company ? company._id : null;
 }
 
-async function resolveContact(name, autoCreate = true) {
+async function resolveContact(name, autoCreate = true, defaultOwnerId = null) {
   if (!name) return null;
   const cleanName = name.toString().trim();
   if (mongoose.Types.ObjectId.isValid(cleanName)) return cleanName;
@@ -60,7 +60,24 @@ async function resolveContact(name, autoCreate = true) {
   });
 
   if (!contact && autoCreate) {
-    contact = await Contact.create({ firstName: firstNameVal, lastName: lastNameVal || ' ' });
+    let ownerId = defaultOwnerId;
+    if (!ownerId) {
+      const firstUser = await User.findOne();
+      if (firstUser) {
+        ownerId = firstUser._id;
+      }
+    }
+    if (!ownerId) {
+      ownerId = await resolveUser('System Owner', true);
+    }
+    const cleanEmail = cleanName.includes('@') ? cleanName.toLowerCase() : `${firstNameVal.toLowerCase()}.${(lastNameVal || 'contact').toLowerCase().replace(/\s+/g, '')}@example.com`;
+
+    contact = await Contact.create({
+      firstName: firstNameVal,
+      lastName: lastNameVal || '-',
+      email: cleanEmail,
+      owner: ownerId
+    });
   }
   return contact ? contact._id : null;
 }

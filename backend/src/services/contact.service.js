@@ -81,18 +81,25 @@ async function bulkImportContacts(rowsInput) {
     const row = rows[i];
     const rowNumber = i + 2;
 
-    const firstName = row['First Name'] || row['firstName'] || '';
-    const lastName = row['Last Name'] || row['lastName'] || '';
+    let firstName = row['First Name'] || row['firstName'] || '';
+    let lastName = row['Last Name'] || row['lastName'] || '';
+    if ((!firstName || !lastName) && (row['name'] || row['Name'] || row['Contact Name'] || row['contactName'])) {
+      const fullName = (row['name'] || row['Name'] || row['Contact Name'] || row['contactName']).toString().trim();
+      const parts = fullName.split(/\s+/);
+      firstName = parts[0] || '';
+      lastName = parts.slice(1).join(' ') || '-';
+    }
+
     const ownerName = row['Owner'] || row['owner'] || row['Contact Owner'] || '';
     const companyName = row['Company name'] || row['Company Name'] || row['Associated Company Name'] || row['company'] || '';
     const jobTitle = row['Job Title'] || row['jobTitle'] || row['Contact Job Title'] || '';
     const email = row['Email'] || row['email'] || row['Contact Email'] || '';
     const stage = row['Stage'] || row['stage'] || row['Contact Stage'] || '';
 
-    if (!firstName || !lastName || !ownerName || !companyName || !jobTitle || !email || !stage) {
+    if (!firstName || !lastName || !ownerName || !email || !stage) {
       errors.push({
         row: rowNumber,
-        reason: 'Missing required fields: First Name, Last Name, Owner, Company name, Job Title, Email, or Stage',
+        reason: 'Missing required fields: First Name, Last Name, Owner, Email, or Stage',
       });
       skippedCount++;
       continue;
@@ -108,14 +115,17 @@ async function bulkImportContacts(rowsInput) {
       continue;
     }
 
-    const companyId = await resolveCompany(companyName, true);
-    if (!companyId) {
-      errors.push({
-        row: rowNumber,
-        reason: `Company '${companyName}' not found and could not be created`,
-      });
-      skippedCount++;
-      continue;
+    let companyId = null;
+    if (companyName) {
+      companyId = await resolveCompany(companyName, true);
+      if (!companyId) {
+        errors.push({
+          row: rowNumber,
+          reason: `Company '${companyName}' not found and could not be created`,
+        });
+        skippedCount++;
+        continue;
+      }
     }
 
     const payload = {
