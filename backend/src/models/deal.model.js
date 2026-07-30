@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 
+const DEAL_STAGE_OPTIONS = ['Lead', 'New', 'Qualified', 'Proposal', 'Negotiation', 'Contacted', 'Closed Won', 'Closed Lost', 'Deal Created', 'POC', 'Demo Done', 'Nurture'];
+
 // Deal schema definition
 const dealSchema = new mongoose.Schema(
   {
@@ -25,7 +27,7 @@ const dealSchema = new mongoose.Schema(
     },
     dealStage: {
       type: String,
-      enum: ['Lead', 'New', 'Qualified', 'Proposal', 'Negotiation', 'Contacted', 'Closed Won', 'Closed Lost', 'Deal Created', 'POC', 'Nurture'],
+      enum: DEAL_STAGE_OPTIONS,
       default: 'New',
     },
     dealValue: {
@@ -91,4 +93,6 @@ dealSchema.index({ owner: 1 });
 dealSchema.index({ dealStage: 1 });
 dealSchema.index({ associatedCompany: 1 });
 
-module.exports = mongoose.model('Deal', dealSchema);
+const Deal = mongoose.model('Deal', dealSchema);
+module.exports = Deal;
+module.exports.DEAL_STAGE_OPTIONS = DEAL_STAGE_OPTIONS;

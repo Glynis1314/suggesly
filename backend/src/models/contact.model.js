@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 
+const CONTACT_STAGE_OPTIONS = ['New', 'Contacted', 'Qualified', 'Proposal', 'Negotiation', 'Won', 'Lost', 'CUSTOMER', 'QUALIFIED', 'LEAD', 'NURTURING', 'CLOSED LOST'];
+
 // Contact schema definition
 const contactSchema = new mongoose.Schema(
   {
@@ -46,7 +48,7 @@ const contactSchema = new mongoose.Schema(
     },
     stage: {
       type: String,
-      enum: ['New', 'Contacted', 'Qualified', 'Proposal', 'Negotiation', 'Won', 'Lost', 'CUSTOMER', 'QUALIFIED', 'LEAD', 'NURTURING', 'CLOSED LOST'],
+      enum: CONTACT_STAGE_OPTIONS,
       default: 'New',
     },
     country: {
@@ -108,4 +110,6 @@ contactSchema.index({ email: 1 });
 contactSchema.index({ company: 1 });
 contactSchema.index({ owner: 1 });
 
-module.exports = mongoose.model('Contact', contactSchema);
+const Contact = mongoose.model('Contact', contactSchema);
+module.exports = Contact;
+module.exports.CONTACT_STAGE_OPTIONS = CONTACT_STAGE_OPTIONS;

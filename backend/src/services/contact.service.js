@@ -1,4 +1,5 @@
 const Contact = require('../models/contact.model');
+const { CONTACT_STAGE_OPTIONS } = Contact;
 const createCrudService = require('./crud.service');
 const { resolveUser, resolveCompany } = require('./resolver');
 
@@ -28,7 +29,7 @@ const transformFn = (obj) => {
 
 const crud = createCrudService(Contact, populateOptions, transformFn);
 
-async function resolvePayload(payload) {
+async function resolvePayload(payload, { isUpdate = false } = {}) {
   const cleanPayload = { ...payload };
   if (cleanPayload.name) {
     const parts = cleanPayload.name.trim().split(/\s+/);
@@ -41,8 +42,10 @@ async function resolvePayload(payload) {
   }
   if (cleanPayload.company) {
     cleanPayload.company = await resolveCompany(cleanPayload.company, true);
-  } else {
+  } else if (!isUpdate) {
     cleanPayload.company = null;
+  } else {
+    delete cleanPayload.company;
   }
   if (cleanPayload.createdBy) {
     cleanPayload.createdBy = await resolveUser(cleanPayload.createdBy);
@@ -54,12 +57,12 @@ async function resolvePayload(payload) {
 }
 
 async function create(payload) {
-  const resolved = await resolvePayload(payload);
+  const resolved = await resolvePayload(payload, { isUpdate: false });
   return await crud.create(resolved);
 }
 
 async function update(id, payload) {
-  const resolved = await resolvePayload(payload);
+  const resolved = await resolvePayload(payload, { isUpdate: true });
   return await crud.update(id, resolved);
 }
 
@@ -69,6 +72,17 @@ async function getContactsByCompany(companyId) {
     .populate('company', 'company site')
     .sort({ createdAt: -1 });
   return docs.map(transformFn);
+}
+
+function normalizeContactStage(rawValue) {
+  if (!rawValue) return '';
+  // Strip a trailing parenthetical suffix like "(Outbound)", "(Inbound)", etc.
+  const withoutSuffix = String(rawValue).replace(/\s*\([^)]*\)\s*$/, '').trim();
+  // Case-insensitive match against the canonical enum list
+  const match = CONTACT_STAGE_OPTIONS.find(
+    (option) => option.toLowerCase() === withoutSuffix.toLowerCase()
+  );
+  return match || '';
 }
 
 async function bulkImportContacts(rowsInput) {
@@ -94,12 +108,31 @@ async function bulkImportContacts(rowsInput) {
     const companyName = row['Company name'] || row['Company Name'] || row['Associated Company Name'] || row['company'] || '';
     const jobTitle = row['Job Title'] || row['jobTitle'] || row['Contact Job Title'] || '';
     const email = row['Email'] || row['email'] || row['Contact Email'] || '';
-    const stage = row['Stage'] || row['stage'] || row['Contact Stage'] || '';
+    const rawStage = row['Stage'] || row['stage'] || row['Contact Stage'] || '';
+    const stage = normalizeContactStage(rawStage);
 
-    if (!firstName || !lastName || !ownerName || !email || !stage) {
+    console.log(`[bulkImportContacts] row ${rowNumber} raw data:`, JSON.stringify(row));
+
+    const missing = [];
+    if (!firstName) missing.push('First Name');
+    if (!lastName) missing.push('Last Name');
+    if (!ownerName) missing.push('Owner');
+    if (!email) missing.push('Email');
+    if (!rawStage) missing.push('Stage');
+
+    if (missing.length > 0) {
       errors.push({
         row: rowNumber,
-        reason: 'Missing required fields: First Name, Last Name, Owner, Email, or Stage',
+        reason: `Missing required fields: ${missing.join(', ')}`,
+      });
+      skippedCount++;
+      continue;
+    }
+
+    if (rawStage && !stage) {
+      errors.push({
+        row: rowNumber,
+        reason: `Unrecognized contact stage "${rawStage}" — expected one of: ${CONTACT_STAGE_OPTIONS.join(', ')}`,
       });
       skippedCount++;
       continue;

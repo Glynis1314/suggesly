@@ -1,6 +1,7 @@
 export const dealStageOptions = [
   'Deal Created',
   'POC',
+  'Demo Done',
   'Proposal',
   'Closed Won',
   'Closed Lost',

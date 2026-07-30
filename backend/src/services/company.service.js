@@ -51,10 +51,17 @@ async function bulkImportCompanies(rowsInput) {
     const ownerName = row['Owner'] || row['owner'] || '';
     const stage = row['Stage'] || row['stage'] || '';
 
-    if (!companyName || !ownerName || !stage) {
+    console.log(`[bulkImportCompanies] row ${rowNumber} raw data:`, JSON.stringify(row));
+
+    const missing = [];
+    if (!companyName) missing.push('Company Name');
+    if (!ownerName) missing.push('Owner');
+    if (!stage) missing.push('Stage');
+
+    if (missing.length > 0) {
       errors.push({
         row: rowNumber,
-        reason: 'Missing required fields: Company Name, Owner, or Stage',
+        reason: `Missing required fields: ${missing.join(', ')}`,
       });
       skippedCount++;
       continue;

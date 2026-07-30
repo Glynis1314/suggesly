@@ -1,4 +1,5 @@
 const Deal = require('../models/deal.model');
+const { DEAL_STAGE_OPTIONS } = Deal;
 const createCrudService = require('./crud.service');
 const { resolveUser, resolveCompany, resolveContact } = require('./resolver');
 
@@ -34,7 +35,7 @@ const transformFn = (obj) => {
 
 const crud = createCrudService(Deal, populateOptions, transformFn);
 
-async function resolvePayload(payload) {
+async function resolvePayload(payload, { isUpdate = false } = {}) {
   const cleanPayload = { ...payload };
   if (cleanPayload.dealOwner) {
     cleanPayload.owner = await resolveUser(cleanPayload.dealOwner);
@@ -48,15 +49,19 @@ async function resolvePayload(payload) {
   }
   if (cleanPayload.associatedCompany) {
     cleanPayload.associatedCompany = await resolveCompany(cleanPayload.associatedCompany, true);
-  } else {
+  } else if (!isUpdate) {
     cleanPayload.associatedCompany = null;
+  } else {
+    delete cleanPayload.associatedCompany;
   }
   if (cleanPayload.primaryContact) {
     cleanPayload.primaryContact = await resolveContact(cleanPayload.primaryContact, true, cleanPayload.owner);
-  } else {
+  } else if (!isUpdate) {
     cleanPayload.primaryContact = null;
+  } else {
+    delete cleanPayload.primaryContact;
   }
-  if (!cleanPayload.currency) {
+  if (!cleanPayload.currency && !isUpdate) {
     cleanPayload.currency = 'USD';
   }
   if (cleanPayload.createdBy) {
@@ -69,13 +74,39 @@ async function resolvePayload(payload) {
 }
 
 async function create(payload) {
-  const resolved = await resolvePayload(payload);
+  const resolved = await resolvePayload(payload, { isUpdate: false });
   return await crud.create(resolved);
 }
 
 async function update(id, payload) {
-  const resolved = await resolvePayload(payload);
+  const resolved = await resolvePayload(payload, { isUpdate: true });
   return await crud.update(id, resolved);
+}
+
+const DEAL_STAGE_ALIASES = {
+  'closed forever': 'Closed Lost',
+  // add any other known synonyms here as they come up, e.g.:
+  // 'lost forever': 'Closed Lost',
+  // 'dead': 'Closed Lost',
+};
+
+function normalizeDealStage(rawValue) {
+  if (!rawValue) return '';
+
+  // Strip a trailing parenthetical suffix like "(Outbound)", "(Inbound)", etc.
+  const withoutSuffix = String(rawValue).replace(/\s*\([^)]*\)\s*$/, '').trim();
+  const normalizedKey = withoutSuffix.toLowerCase();
+
+  // Check manual aliases first (business-defined synonyms that don't match any enum value directly)
+  if (DEAL_STAGE_ALIASES[normalizedKey]) {
+    return DEAL_STAGE_ALIASES[normalizedKey];
+  }
+
+  // Fall back to case-insensitive exact match against the canonical enum list
+  const match = DEAL_STAGE_OPTIONS.find(
+    (option) => option.toLowerCase() === normalizedKey
+  );
+  return match || '';
 }
 
 async function bulkImportDeals(rowsInput) {
@@ -91,14 +122,33 @@ async function bulkImportDeals(rowsInput) {
     const dealName = row['Deal Name'] || row['dealName'] || '';
     const associatedCompany = row['Associated Company'] || row['associatedCompany'] || '';
     const ownerName = row['Owner'] || row['owner'] || row['Deal Owner'] || row['dealOwner'] || '';
-    const dealStage = row['Deal Stage'] || row['dealStage'] || '';
+    const rawDealStage = row['Deal Stage'] || row['dealStage'] || '';
+    const dealStage = normalizeDealStage(rawDealStage);
     const dealValue = row['Deal Value'] || row['dealValue'] || row['dealSize'] || '';
     const currency = row['Currency'] || row['currency'] || 'USD';
 
-    if (!dealName || !associatedCompany || !ownerName || !dealStage || !dealValue || !currency) {
+    console.log(`[bulkImportDeals] row ${rowNumber} raw data:`, JSON.stringify(row));
+
+    const missing = [];
+    if (!dealName) missing.push('Deal Name');
+    if (!associatedCompany) missing.push('Associated Company');
+    if (!ownerName) missing.push('Owner');
+    if (!rawDealStage) missing.push('Deal Stage');
+    if (!dealValue) missing.push('Deal Value');
+
+    if (missing.length > 0) {
       errors.push({
         row: rowNumber,
-        reason: 'Missing required fields: Deal Name, Associated Company, Owner, Deal Stage, Deal Value, or Currency',
+        reason: `Missing required fields: ${missing.join(', ')}`,
+      });
+      skippedCount++;
+      continue;
+    }
+
+    if (rawDealStage && !dealStage) {
+      errors.push({
+        row: rowNumber,
+        reason: `Unrecognized deal stage "${rawDealStage}" — expected one of: ${DEAL_STAGE_OPTIONS.join(', ')}`,
       });
       skippedCount++;
       continue;
