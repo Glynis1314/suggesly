@@ -20,6 +20,7 @@ export default function EditableCell({ value, type = 'text', options = [], onSav
   const [editing, setEditing] = useState(false);
   const [local, setLocal] = useState(type === 'multiselect' ? value ?? [] : value ?? '');
   const [newTag, setNewTag] = useState('');
+  const [hovering, setHovering] = useState(false);
   const ref = useRef(null);
 
   useEffect(() => {
@@ -32,6 +33,7 @@ export default function EditableCell({ value, type = 'text', options = [], onSav
 
   const save = () => {
     setEditing(false);
+    setHovering(false);
     if (onSave) onSave(local);
   };
 
@@ -263,8 +265,20 @@ export default function EditableCell({ value, type = 'text', options = [], onSav
     );
   }
 
+  const showTooltip = !editing && value && (type === 'textarea' || (type === 'text' && typeof value === 'string' && value.length > 40));
+
   return (
-    <div onClick={() => !editing && setEditing(true)} className="hover:bg-slate-50 cursor-text rounded">
+    <div
+      onClick={() => {
+        if (!editing) {
+          setEditing(true);
+          setHovering(false);
+        }
+      }}
+      onMouseEnter={() => showTooltip && setHovering(true)}
+      onMouseLeave={() => setHovering(false)}
+      className="relative hover:bg-slate-50 cursor-text rounded w-full min-w-0"
+    >
       {editing ? (
         <div>
           {type === 'textarea' ? (
@@ -278,13 +292,20 @@ export default function EditableCell({ value, type = 'text', options = [], onSav
           )}
         </div>
       ) : (
-        <div className={type === 'email' ? 'text-sm text-teal-600 hover:underline' : 'text-sm text-slate-900'}>
-          {type === 'email' ? (
-            <a href={`mailto:${value}`} className="text-teal-600 hover:underline">{value || '—'}</a>
-          ) : (
-            value || '—'
+        <>
+          <div className={type === 'email' ? 'text-sm text-teal-600 hover:underline truncate' : 'text-sm text-slate-900 truncate'}>
+            {type === 'email' ? (
+              <a href={`mailto:${value}`} className="text-teal-600 hover:underline">{value || '—'}</a>
+            ) : (
+              value || '—'
+            )}
+          </div>
+          {showTooltip && hovering && (
+            <div className="absolute left-0 top-full mt-2 w-80 max-w-[320px] rounded-2xl border border-slate-200 bg-white p-3 shadow-xl z-50 text-sm text-slate-700 whitespace-pre-wrap text-left normal-case break-words">
+              {value}
+            </div>
           )}
-        </div>
+        </>
       )}
     </div>
   );

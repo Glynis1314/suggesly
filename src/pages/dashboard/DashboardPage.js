@@ -28,19 +28,21 @@ const STAGE_COLORS = {
 };
 
 const MEETINGS_STAGE_ORDER = [
-  'Meeting Scheduled',
-  'Meeting Completed',
-  'Follow-up Sent',
-  'Converted to Deal',
-  'No-Show',
+  'Reached Out',
+  'Engaged',
+  'Nurture',
+  'Not Interested',
+  'Dropped',
+  'Demo Booked',
 ];
 
 const MEETINGS_STAGE_COLORS = {
-  'Meeting Scheduled': '#818cf8', // blue/indigo
-  'Meeting Completed': '#4f46e5', // rich indigo
-  'Follow-up Sent': '#f59e0b',    // amber/orange
-  'Converted to Deal': '#10b981', // emerald/green
-  'No-Show': '#f43f5e',           // rose/red
+  'Reached Out': '#0ea5e9',
+  'Engaged': '#fde047',
+  'Nurture': '#94a3b8',
+  'Not Interested': '#ef4444',
+  'Dropped': '#fb923c',
+  'Demo Booked': '#10b981',
 };
 
 function LogMeetingModal({ open, onClose, companyOptions, onCreate }) {
@@ -224,81 +226,27 @@ export default function DashboardPage() {
     }));
   }, [deals]);
 
-  // 2. Compute Funnel Data for Meetings tab (using deals as proxy + manual logs)
+  // 2. Compute Funnel Data for Meetings tab (using account stage)
   const meetingsFunnelData = useMemo(() => {
-    const counts = {
-      'Meeting Scheduled': 0,
-      'Meeting Completed': 0,
-      'Follow-up Sent': 0,
-      'Converted to Deal': 0,
-      'No-Show': 0,
-    };
-    const values = {
-      'Meeting Scheduled': 0,
-      'Meeting Completed': 0,
-      'Follow-up Sent': 0,
-      'Converted to Deal': 0,
-      'No-Show': 0,
-    };
+    const counts = {};
+    const values = {};
 
-    // Proxies from actual deals data
-    deals.forEach((deal) => {
-      const size = Number(deal.dealSize) || 0;
-      counts['Meeting Scheduled']++;
-      values['Meeting Scheduled'] += size;
-
-      if (['POC', 'Proposal', 'Nurture', 'Closed Won'].includes(deal.dealStage)) {
-        counts['Meeting Completed']++;
-        values['Meeting Completed'] += size;
-      }
-      if (['Proposal', 'Nurture', 'Closed Won'].includes(deal.dealStage)) {
-        counts['Follow-up Sent']++;
-        values['Follow-up Sent'] += size;
-      }
-      if (deal.dealStage === 'Closed Won') {
-        counts['Converted to Deal']++;
-        values['Converted to Deal'] += size;
-      }
-      if (deal.dealStage === 'Closed Lost') {
-        counts['No-Show']++;
-        values['No-Show'] += size;
-      }
+    MEETINGS_STAGE_ORDER.forEach((stage) => {
+      counts[stage] = 0;
+      values[stage] = 0;
     });
 
-    // Add manual local meetings logged by the user
-    localMeetings.forEach((m) => {
-      const deal = deals.find((d) => d.associatedCompany === m.company);
-      const val = deal ? (Number(deal.dealSize) || 0) : 50000;
-
-      if (m.stage === 'Meeting Scheduled') {
-        counts['Meeting Scheduled']++;
-        values['Meeting Scheduled'] += val;
-      } else if (m.stage === 'Meeting Completed') {
-        counts['Meeting Scheduled']++;
-        values['Meeting Scheduled'] += val;
-        counts['Meeting Completed']++;
-        values['Meeting Completed'] += val;
-      } else if (m.stage === 'Follow-up Sent') {
-        counts['Meeting Scheduled']++;
-        values['Meeting Scheduled'] += val;
-        counts['Meeting Completed']++;
-        values['Meeting Completed'] += val;
-        counts['Follow-up Sent']++;
-        values['Follow-up Sent'] += val;
-      } else if (m.stage === 'Converted to Deal') {
-        counts['Meeting Scheduled']++;
-        values['Meeting Scheduled'] += val;
-        counts['Meeting Completed']++;
-        values['Meeting Completed'] += val;
-        counts['Follow-up Sent']++;
-        values['Follow-up Sent'] += val;
-        counts['Converted to Deal']++;
-        values['Converted to Deal'] += val;
-      } else if (m.stage === 'No-Show') {
-        counts['Meeting Scheduled']++;
-        values['Meeting Scheduled'] += val;
-        counts['No-Show']++;
-        values['No-Show'] += val;
+    accounts.forEach((account) => {
+      const stage = account.stage;
+      if (counts[stage] !== undefined) {
+        counts[stage]++;
+        const companyName = account.company;
+        const matchingDeals = deals.filter((d) => {
+          const associatedCompanyStr = d.associatedCompany?.company || d.associatedCompany || '';
+          return associatedCompanyStr === companyName;
+        });
+        const dealsSum = matchingDeals.reduce((sum, d) => sum + (Number(d.dealSize) || 0), 0);
+        values[stage] += dealsSum;
       }
     });
 
@@ -306,9 +254,9 @@ export default function DashboardPage() {
       label: stage,
       count: counts[stage],
       value: values[stage],
-      color: MEETINGS_STAGE_COLORS[stage],
+      color: MEETINGS_STAGE_COLORS[stage] || '#64748b',
     }));
-  }, [deals, localMeetings]);
+  }, [accounts, deals]);
 
   const activeFunnelData = activeTab === 'Deals' ? dealsFunnelData : meetingsFunnelData;
 
@@ -366,71 +314,45 @@ export default function DashboardPage() {
       });
     } else {
       // Meetings tab right panel list
-      const manuallyLogged = localMeetings.filter((m) => m.stage === activeStage);
-      const qualifyingDeals = deals.filter((deal) => {
-        if (activeStage === 'Meeting Scheduled') return true;
-        if (activeStage === 'Meeting Completed') {
-          return ['POC', 'Proposal', 'Nurture', 'Closed Won'].includes(deal.dealStage);
-        }
-        if (activeStage === 'Follow-up Sent') {
-          return ['Proposal', 'Nurture', 'Closed Won'].includes(deal.dealStage);
-        }
-        if (activeStage === 'Converted to Deal') {
-          return deal.dealStage === 'Closed Won';
-        }
-        if (activeStage === 'No-Show') {
-          return deal.dealStage === 'Closed Lost';
-        }
-        return false;
-      });
-
-      const formattedDeals = qualifyingDeals.map((deal) => {
-        const size = Number(deal.dealSize) || 0;
-        const lastAct = deal.lastActivityDate ? new Date(deal.lastActivityDate).getTime() : 0;
-        const daysSinceLastAct = (Date.now() - lastAct) / 86400000;
-
-        // Heuristic: VALUABLE if ARR >= $150k, STUCK if inactive > 30 days or Closed Lost, HOT otherwise.
+      const qualifyingAccounts = accounts.filter((account) => account.stage === activeStage);
+      
+      return qualifyingAccounts.map((account) => {
+        const companyName = account.company;
+        const matchingDeals = deals.filter((d) => {
+          const associatedCompanyStr = d.associatedCompany?.company || d.associatedCompany || '';
+          return associatedCompanyStr === companyName;
+        });
+        const totalSize = matchingDeals.reduce((sum, d) => sum + (Number(d.dealSize) || 0), 0);
+        
         let statusPill = 'HOT';
         let statusColor = 'bg-blue-100 text-blue-700';
-        if (deal.dealStage === 'Closed Lost' || daysSinceLastAct > 30) {
-          statusPill = 'STUCK';
-          statusColor = 'bg-orange-100 text-orange-700';
-        } else if (size >= 150000) {
+        if (account.stage === 'Not Interested' || account.stage === 'Dropped') {
+          statusPill = 'COLD';
+          statusColor = 'bg-slate-100 text-slate-700';
+        } else if (totalSize >= 150000) {
           statusPill = 'VALUABLE';
           statusColor = 'bg-rose-100 text-rose-700';
         }
 
-        let statusLine = deal.nextAction || 'Next step pending';
-        if (deal.dealStage === 'Closed Won') {
-          statusLine = 'Meeting resulted in Closed Won';
-        } else if (deal.dealStage === 'Closed Lost') {
-          statusLine = 'Meeting outcome: Lost';
-        } else if (deal.lastActivityDate) {
-          statusLine = `Meeting completed on ${new Date(deal.lastActivityDate).toLocaleDateString()}`;
+        let statusLine = `Stage: ${account.stage}`;
+        if (matchingDeals.length > 0) {
+          const firstDeal = matchingDeals[0];
+          statusLine = firstDeal.nextAction || `Active Deal: ${firstDeal.dealName}`;
+        } else if (account.notes) {
+          statusLine = account.notes;
         }
 
         return {
-          id: deal.id,
-          company: deal.associatedCompany,
+          id: account.id || account._id,
+          company: account.company,
           statusPill,
           statusColor,
           statusLine,
-          value: size,
+          value: totalSize,
         };
       });
-
-      const formattedManual = manuallyLogged.map((m, idx) => ({
-        id: `manual-meeting-${idx}`,
-        company: m.company,
-        statusPill: 'HOT',
-        statusColor: 'bg-blue-100 text-blue-700',
-        statusLine: `${m.title} logged on ${m.date}`,
-        value: 50000,
-      }));
-
-      return [...formattedManual, ...formattedDeals];
     }
-  }, [activeTab, activeStage, deals, localMeetings]);
+  }, [activeTab, activeStage, deals, accounts]);
 
   // Helpers for company initials & colors
   const getAccountInitialsAndColor = (companyName) => {
@@ -470,15 +392,19 @@ export default function DashboardPage() {
         };
       });
     } else {
-      // Meetings tab table rows
-      const manualRows = localMeetings.map((m, idx) => ({
-        id: `manual-table-${idx}`,
-        company: m.company,
-        health: m.stage === 'No-Show' ? 'Stuck' : 'Forward',
-        remarks: m.notes || `Discussed ${m.title}.`,
-        nextStep: 'Log next communication',
-        dueDate: m.date,
-      }));
+        // Meetings tab table rows
+        const manualRows = localMeetings.map((m, idx) => {
+          const companyAcc = accounts.find((a) => a.company === m.company);
+          const isStuck = companyAcc && ['Not Interested', 'Dropped'].includes(companyAcc.stage);
+          return {
+            id: `manual-table-${idx}`,
+            company: m.company,
+            health: isStuck ? 'Stuck' : 'Forward',
+            remarks: m.notes || `Discussed ${m.title}.`,
+            nextStep: 'Log next communication',
+            dueDate: m.date,
+          };
+        });
 
       const proxyRows = deals.map((deal) => {
         const lastAct = deal.lastActivityDate ? new Date(deal.lastActivityDate).getTime() : 0;
@@ -497,7 +423,7 @@ export default function DashboardPage() {
 
       return [...manualRows, ...proxyRows].slice(0, 15); // Limit proxy + manual rows
     }
-  }, [activeTab, deals, localMeetings]);
+  }, [activeTab, deals, localMeetings, accounts]);
 
   const totalARRValue = useMemo(() => {
     return activeFunnelData.reduce((sum, item) => sum + item.value, 0);

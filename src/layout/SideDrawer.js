@@ -80,7 +80,7 @@ function NavIcon({ type, active }) {
 
 const navItems = [
   { label: 'Dashboard', icon: 'dashboard', path: '/' },
-  { label: 'Accounts', icon: 'accounts', path: '/accounts' },
+  { label: 'Companies', icon: 'accounts', path: '/accounts' },
   { label: 'Deals', icon: 'deals', path: '/deals' },
   { label: 'Contacts', icon: 'contacts', path: '/contacts' },
   { label: 'Template', icon: 'template', path: '/deals' },

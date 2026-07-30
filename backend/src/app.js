@@ -5,6 +5,7 @@ const authRoutes = require('./routes/auth.routes');
 const companyRoutes = require('./routes/company.routes');
 const contactRoutes = require('./routes/contact.routes');
 const dealRoutes = require('./routes/deal.routes');
+const noteRoutes = require('./routes/note.routes');
 
 const app = express();
 
@@ -30,6 +31,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/companies', companyRoutes);
 app.use('/api/contacts', contactRoutes);
 app.use('/api/deals', dealRoutes);
+app.use('/api/notes', noteRoutes);
 
 // Serve static assets in production
 if (process.env.NODE_ENV === 'production') {

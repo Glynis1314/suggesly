@@ -129,3 +129,21 @@ export const filterDeals = async (filters) => {
     throw error;
   }
 };
+
+export const bulkUpdateDeals = async (ids, updates) => {
+  try {
+    return await axiosInstance.patch(`${DEALS}/bulk-update`, { ids, updates });
+  } catch (error) {
+    console.error('Error in bulkUpdateDeals API call:', error);
+    throw error;
+  }
+};
+
+export const bulkDeleteDeals = async (ids) => {
+  try {
+    return await axiosInstance.delete(`${DEALS}/bulk-delete`, { data: { ids } });
+  } catch (error) {
+    console.error('Error in bulkDeleteDeals API call:', error);
+    throw error;
+  }
+};

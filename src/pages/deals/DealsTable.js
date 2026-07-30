@@ -2,10 +2,9 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import DataTable from '../../components/DataTable';
 import CurrencyCell from '../../components/CurrencyCell';
-import OwnerAvatar from '../../components/OwnerAvatar';
-import StageBadge from '../../components/StageBadge';
 import DateCell from '../../components/DateCell';
 import TaskListCell from '../../components/TaskListCell';
+import EditableCell from '../../components/EditableCell';
 
 const cellBaseClasses = 'px-6 py-4 border-r border-slate-100 last:border-0 h-16 min-w-0';
 const primaryTextClasses = 'text-sm font-semibold text-slate-800';
@@ -43,8 +42,43 @@ export default function DealsTable({
   visibleCount,
   loadMore,
   onScroll,
+  ownerOptions,
+  dealStageOptions,
+  updateDeal,
+  selectedRows,
+  setSelectedRows,
 }) {
   const navigate = useNavigate();
+
+  const handleSave = (deal, field, value) => {
+    updateDeal({ ...deal, [field]: value });
+  };
+
+  const toggleRow = (id) => {
+    setSelectedRows((current) =>
+      current.includes(id) ? current.filter((item) => item !== id) : [...current, id]
+    );
+  };
+
+  const selectAll = deals.length > 0 && deals.every((row) => selectedRows.includes(row.id));
+
+  const toggleSelectAll = () => {
+    if (selectAll) {
+      const currentIds = deals.map((row) => row.id);
+      setSelectedRows((current) => current.filter((id) => !currentIds.includes(id)));
+    } else {
+      const currentIds = deals.map((row) => row.id);
+      setSelectedRows((current) => {
+        const next = [...current];
+        currentIds.forEach((id) => {
+          if (!next.includes(id)) {
+            next.push(id);
+          }
+        });
+        return next;
+      });
+    }
+  };
 
   const renderCellContent = (deal, colId) => {
     switch (colId) {
@@ -76,21 +110,29 @@ export default function DealsTable({
         );
       case 'dealOwner':
         return (
-          <div className="flex items-center">
-            <OwnerAvatar owner={deal.dealOwner} />
-          </div>
+          <EditableCell
+            type="owner"
+            value={deal.dealOwner}
+            options={ownerOptions}
+            onSave={(value) => handleSave(deal, 'dealOwner', value)}
+          />
         );
       case 'source':
         return (
-          <div className="flex items-center">
-            <span className="text-sm text-gray-900">{deal.source || deal.dealSourceOwnerName || '—'}</span>
-          </div>
+          <EditableCell
+            type="text"
+            value={deal.source || ''}
+            onSave={(value) => handleSave(deal, 'source', value)}
+          />
         );
       case 'dealStage':
         return (
-          <div className="flex items-center">
-            <StageBadge stage={deal.dealStage} />
-          </div>
+          <EditableCell
+            type="stage"
+            value={deal.dealStage}
+            options={dealStageOptions}
+            onSave={(value) => handleSave(deal, 'dealStage', value)}
+          />
         );
       case 'dealCreatedDate':
         return (
@@ -104,6 +146,14 @@ export default function DealsTable({
             <DateCell date={deal.lastActivityDate} />
           </div>
         );
+      case 'notes':
+        return (
+          <EditableCell
+            type="textarea"
+            value={deal.notes || ''}
+            onSave={(value) => handleSave(deal, 'notes', value)}
+          />
+        );
       case 'upcomingTask':
         return (
           <div className="flex items-center">
@@ -115,25 +165,61 @@ export default function DealsTable({
     }
   };
 
+  const modifiedColumns = [
+    {
+      id: 'checkbox',
+      label: (
+        <input
+          type="checkbox"
+          checked={selectAll}
+          onChange={toggleSelectAll}
+          className="h-5 w-5 rounded border-slate-300 shrink-0"
+        />
+      ),
+      width: 52,
+      sortable: false,
+    },
+    ...columns,
+    { id: 'actions', label: 'Actions', width: 72, sortable: false },
+  ];
+
   return (
     <div className="w-full">
       <DataTable
-        columns={columns}
+        columns={modifiedColumns}
         loading={loading}
         error={error}
         sortKey={sortKey}
         sortDirection={sortDirection}
         onSort={onSort}
-        dragOverColIndex={dragOverColIndex}
-        handleResizeStart={handleResizeStart}
-        handleDragStart={handleDragStart}
-        handleDragOver={handleDragOver}
-        handleDrop={handleDrop}
+        dragOverColIndex={dragOverColIndex === null ? null : dragOverColIndex + 1}
+        handleResizeStart={(idx, e) => {
+          if (idx > 0 && idx < modifiedColumns.length - 1) handleResizeStart(idx - 1, e);
+        }}
+        handleDragStart={(idx, e) => {
+          if (idx > 0 && idx < modifiedColumns.length - 1) handleDragStart(idx - 1, e);
+        }}
+        handleDragOver={(idx, e) => {
+          if (idx > 0 && idx < modifiedColumns.length - 1) handleDragOver(idx - 1, e);
+        }}
+        handleDrop={(idx, e) => {
+          if (idx > 0 && idx < modifiedColumns.length - 1) handleDrop(idx - 1, e);
+        }}
         emptyMessage="No deals found."
         loadingMessage="Loading deals..."
       >
         {deals.slice(0, visibleCount).map((deal) => (
           <tr key={deal.id} className="border-b border-gray-100 hover:bg-slate-50">
+            <td className="px-5 py-4 align-middle w-[52px]">
+              <div className="flex h-full items-center">
+                <input
+                  type="checkbox"
+                  checked={selectedRows.includes(deal.id)}
+                  onChange={() => toggleRow(deal.id)}
+                  className="h-5 w-5 rounded border-slate-300"
+                />
+              </div>
+            </td>
             {columns.map((col) => (
               <td
                 key={col.id}
@@ -145,6 +231,9 @@ export default function DealsTable({
                 </div>
               </td>
             ))}
+            <td className="px-5 py-4 align-middle text-slate-400 w-[72px]">
+              <div className="flex h-full items-center">...</div>
+            </td>
           </tr>
         ))}
       </DataTable>

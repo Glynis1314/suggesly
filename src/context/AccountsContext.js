@@ -75,6 +75,26 @@ export function AccountsProvider({ children }) {
     }
   };
 
+  const bulkUpdateAccounts = async (ids, updates) => {
+    try {
+      await axiosInstance.patch('/companies/bulk-update', { ids, updates });
+      await fetchAccounts();
+    } catch (err) {
+      console.error('Error bulk updating companies in context:', err);
+      throw err;
+    }
+  };
+
+  const bulkDeleteAccounts = async (ids) => {
+    try {
+      await axiosInstance.delete('/companies/bulk-delete', { data: { ids } });
+      setAccounts((current) => current.filter((a) => !ids.map(String).includes(String(a._id || a.id))));
+    } catch (err) {
+      console.error('Error bulk deleting companies in context:', err);
+      throw err;
+    }
+  };
+
   return (
     <AccountsContext.Provider
       value={{
@@ -85,6 +105,8 @@ export function AccountsProvider({ children }) {
         importAccounts,
         updateAccount,
         deleteAccount,
+        bulkUpdateAccounts,
+        bulkDeleteAccounts,
         refetch: fetchAccounts,
       }}
     >

@@ -41,8 +41,8 @@ export default function Modal({
       <div className="absolute inset-0 bg-transparent" onClick={onClose} aria-hidden="true" />
       
       {/* Modal Dialog */}
-      <div className={`relative w-full ${currentSizeClass} rounded-3xl border border-surface-border bg-surface-card p-6 shadow-modal transition-all duration-200 transform scale-100`}>
-        <div className="flex items-start justify-between gap-4">
+      <div className={`relative w-full ${currentSizeClass} rounded-3xl border border-surface-border bg-surface-card p-6 shadow-modal transition-all duration-200 transform scale-100 max-h-[90vh] flex flex-col`}>
+        <div className="flex items-start justify-between gap-4 shrink-0">
           <div>
             <h2 className="text-2xl font-bold tracking-tight text-text-primary">{title}</h2>
           </div>
@@ -56,10 +56,10 @@ export default function Modal({
           </button>
         </div>
 
-        <div className="mt-4 text-text-secondary text-sm leading-relaxed">{children}</div>
+        <div className="mt-4 text-text-secondary text-sm leading-relaxed flex-1 overflow-y-auto min-h-0 pr-1">{children}</div>
 
         {actions && (
-          <div className="mt-6 flex flex-wrap items-center justify-end gap-3 border-t border-surface-border pt-4">
+          <div className="mt-6 flex flex-wrap items-center justify-end gap-3 border-t border-surface-border pt-4 shrink-0">
             {actions}
           </div>
         )}

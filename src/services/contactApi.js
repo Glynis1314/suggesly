@@ -114,3 +114,21 @@ export const getContactsByCompany = async (companyId) => {
     throw error;
   }
 };
+
+export const bulkUpdateContacts = async (ids, updates) => {
+  try {
+    return await axiosInstance.patch(`${CONTACTS}/bulk-update`, { ids, updates });
+  } catch (error) {
+    console.error('Error in bulkUpdateContacts API call:', error);
+    throw error;
+  }
+};
+
+export const bulkDeleteContacts = async (ids) => {
+  try {
+    return await axiosInstance.delete(`${CONTACTS}/bulk-delete`, { data: { ids } });
+  } catch (error) {
+    console.error('Error in bulkDeleteContacts API call:', error);
+    throw error;
+  }
+};

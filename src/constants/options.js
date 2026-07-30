@@ -24,6 +24,7 @@ export const accountStageOptions = [
   'Demo Done',
   'Nurture',
   'Not Interested',
+  'Dropped',
   'Closed Won',
   'Closed Lost',
 ];

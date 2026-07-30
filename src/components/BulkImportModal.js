@@ -461,7 +461,7 @@ export default function BulkImportModal({
       open={open}
       title={`Bulk Import ${entityLabelPlural}`}
       onClose={handleClose}
-      maxWidth="max-w-4xl"
+      size="lg"
       actions={renderNavButtons()}
     >
       <div className="space-y-6">

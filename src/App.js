@@ -22,7 +22,7 @@ function App() {
 
   const activeTab = useMemo(() => {
     if (location.pathname.startsWith('/deals')) return 'Deals';
-    if (location.pathname.startsWith('/accounts')) return 'Accounts';
+    if (location.pathname.startsWith('/accounts')) return 'Companies';
     if (location.pathname.startsWith('/contacts')) return 'Contacts';
     return 'Dashboard';
   }, [location.pathname]);
@@ -30,6 +30,7 @@ function App() {
   const setActiveTab = (tab) => {
     const pathMap = {
       Dashboard: '/dashboard',
+      Companies: '/accounts',
       Accounts: '/accounts',
       Deals: '/deals',
       Contacts: '/contacts',

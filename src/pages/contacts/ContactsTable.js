@@ -5,15 +5,7 @@ import EditableCell from '../../components/EditableCell';
 import { getContactId } from '../../utils/recordIds';
 import { contactStageOptions } from '../../constants/options';
 
-function LinkIcon({ className = 'h-5 w-5' }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className}>
-      <path d="M15 7h3a5 5 0 0 1 0 10h-3" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M9 17H6a5 5 0 0 1 0-10h3" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M8 12h8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
+
 
 export default function ContactsTable({
   contacts,
@@ -31,9 +23,38 @@ export default function ContactsTable({
   visibleCount,
   loadMore,
   updateContact,
+  ownerOptions,
+  selectedRows,
+  setSelectedRows,
 }) {
   const handleSave = (id, field, value) => {
     updateContact(id, { [field]: value });
+  };
+
+  const toggleRow = (id) => {
+    setSelectedRows((current) =>
+      current.includes(id) ? current.filter((item) => item !== id) : [...current, id]
+    );
+  };
+
+  const selectAll = contacts.length > 0 && contacts.every((row) => selectedRows.includes(getContactId(row)));
+
+  const toggleSelectAll = () => {
+    if (selectAll) {
+      const currentIds = contacts.map((row) => getContactId(row));
+      setSelectedRows((current) => current.filter((id) => !currentIds.includes(id)));
+    } else {
+      const currentIds = contacts.map((row) => getContactId(row));
+      setSelectedRows((current) => {
+        const next = [...current];
+        currentIds.forEach((id) => {
+          if (!next.includes(id)) {
+            next.push(id);
+          }
+        });
+        return next;
+      });
+    }
   };
 
   const renderCellContent = (row, colId) => {
@@ -72,14 +93,20 @@ export default function ContactsTable({
         );
       case 'linkedin':
         return (
-          <a
-            href={`https://www.linkedin.com/in/${row.name.replace(/\s+/g, '-').toLowerCase()}`}
-            target="_blank"
-            rel="noreferrer"
-            className="text-teal-600 hover:text-teal-700"
-          >
-            <LinkIcon className="h-5 w-5" />
-          </a>
+          <EditableCell
+            type="linkedin"
+            value={row.linkedin}
+            onSave={(v) => handleSave(getContactId(row), 'linkedin', v)}
+          />
+        );
+      case 'owner':
+        return (
+          <EditableCell
+            type="owner"
+            value={row.owner}
+            options={ownerOptions}
+            onSave={(v) => handleSave(getContactId(row), 'owner', v)}
+          />
         );
       case 'location':
         return (
@@ -119,25 +146,61 @@ export default function ContactsTable({
     }
   };
 
+  const modifiedColumns = [
+    {
+      id: 'checkbox',
+      label: (
+        <input
+          type="checkbox"
+          checked={selectAll}
+          onChange={toggleSelectAll}
+          className="h-5 w-5 rounded border-slate-300 shrink-0"
+        />
+      ),
+      width: 52,
+      sortable: false,
+    },
+    ...columns,
+    { id: 'actions', label: 'Actions', width: 72, sortable: false },
+  ];
+
   return (
     <div className="w-full">
       <DataTable
-        columns={columns}
+        columns={modifiedColumns}
         loading={loading}
         error={error}
         sortKey={sortKey}
         sortDirection={sortDirection}
         onSort={onSort}
-        dragOverColIndex={dragOverColIndex}
-        handleResizeStart={handleResizeStart}
-        handleDragStart={handleDragStart}
-        handleDragOver={handleDragOver}
-        handleDrop={handleDrop}
+        dragOverColIndex={dragOverColIndex === null ? null : dragOverColIndex + 1}
+        handleResizeStart={(idx, e) => {
+          if (idx > 0 && idx < modifiedColumns.length - 1) handleResizeStart(idx - 1, e);
+        }}
+        handleDragStart={(idx, e) => {
+          if (idx > 0 && idx < modifiedColumns.length - 1) handleDragStart(idx - 1, e);
+        }}
+        handleDragOver={(idx, e) => {
+          if (idx > 0 && idx < modifiedColumns.length - 1) handleDragOver(idx - 1, e);
+        }}
+        handleDrop={(idx, e) => {
+          if (idx > 0 && idx < modifiedColumns.length - 1) handleDrop(idx - 1, e);
+        }}
         emptyMessage="No contacts found."
         loadingMessage="Loading contacts..."
       >
         {contacts.slice(0, visibleCount).map((row) => (
           <tr key={getContactId(row)} className="border-b border-gray-100 hover:bg-slate-50">
+            <td className="px-5 py-4 align-middle w-[52px]">
+              <div className="flex h-full items-center">
+                <input
+                  type="checkbox"
+                  checked={selectedRows.includes(getContactId(row))}
+                  onChange={() => toggleRow(getContactId(row))}
+                  className="h-5 w-5 rounded border-slate-300"
+                />
+              </div>
+            </td>
             {columns.map((col) => (
               <td
                 key={col.id}
@@ -149,6 +212,9 @@ export default function ContactsTable({
                 </div>
               </td>
             ))}
+            <td className="px-5 py-4 align-middle text-slate-400 w-[72px]">
+              <div className="flex h-full items-center">...</div>
+            </td>
           </tr>
         ))}
       </DataTable>

@@ -195,6 +195,15 @@ async function bulkImportContacts(rowsInput) {
   };
 }
 
+async function bulkUpdate(ids, updates) {
+  const resolved = await resolvePayload(updates, { isUpdate: true });
+  return await crud.bulkUpdate(ids, resolved);
+}
+
+async function bulkDelete(ids) {
+  return await crud.bulkDelete(ids);
+}
+
 module.exports = {
   create,
   getAll: (query) => crud.getAll(),
@@ -202,6 +211,8 @@ module.exports = {
   update,
   delete: crud.delete,
   getContactsByCompany,
+  bulkUpdate,
+  bulkDelete,
 
   // Keep original function mappings for backwards compatibility if needed
   createContact: create,

@@ -44,6 +44,23 @@ function createCrudService(Model, populateOptions = [], transformFn = (x) => x) 
       const doc = await Model.findByIdAndDelete(id);
       return formatDoc(doc);
     },
+    async bulkUpdate(ids, updates) {
+      const result = await Model.updateMany(
+        { _id: { $in: ids } },
+        updates,
+        { runValidators: true }
+      );
+      return {
+        matchedCount: result.matchedCount,
+        modifiedCount: result.modifiedCount,
+      };
+    },
+    async bulkDelete(ids) {
+      const result = await Model.deleteMany({ _id: { $in: ids } });
+      return {
+        deletedCount: result.deletedCount,
+      };
+    },
   };
 }
 

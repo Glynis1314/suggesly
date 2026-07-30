@@ -1,23 +1,54 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
+import { ChevronRight } from 'lucide-react';
+import { getNotes, createNote } from '../services/noteApi';
+import { readStoredUser } from '../utils/auth';
 
 const tabs = ['All Activities', 'Notes', 'Tasks'];
 
-export default function RecordActivityTabs({ activities = [], initialNotes = [], initialTasks = [] }) {
+export default function RecordActivityTabs({ activities = [], entityType, entityId, initialTasks = [] }) {
   const [activeTab, setActiveTab] = useState(tabs[0]);
-  const [notes, setNotes] = useState(initialNotes);
+  const [notes, setNotes] = useState([]);
+  const [notesLoading, setNotesLoading] = useState(true);
   const [tasks, setTasks] = useState(initialTasks);
   const [noteDraft, setNoteDraft] = useState('');
   const [taskDraft, setTaskDraft] = useState('');
   const [taskDueDate, setTaskDueDate] = useState('');
+  const [expandedIds, setExpandedIds] = useState(new Set());
 
-  const addNote = () => {
-    if (!noteDraft.trim()) return;
-    setNotes((current) => [
-      { id: `note-${Date.now()}`, text: noteDraft.trim(), author: 'Alex Rivera', timestamp: new Date().toISOString() },
-      ...current,
-    ]);
-    setNoteDraft('');
+  useEffect(() => {
+    if (!entityType || !entityId) return;
+    let cancelled = false;
+    setNotesLoading(true);
+    getNotes(entityType, entityId)
+      .then((data) => {
+        if (!cancelled) setNotes(data);
+      })
+      .catch((err) => console.error('Failed to load notes:', err))
+      .finally(() => {
+        if (!cancelled) setNotesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [entityType, entityId]);
+
+  const addNote = async () => {
+    if (!noteDraft.trim() || !entityType || !entityId) return;
+    const currentUser = readStoredUser();
+    try {
+      const created = await createNote({
+        entityType,
+        entityId,
+        text: noteDraft.trim(),
+        author: currentUser?.name || currentUser?.email,
+      });
+      setNotes((current) => [created, ...current]);
+      setNoteDraft('');
+    } catch (err) {
+      console.error('Failed to save note:', err);
+      alert('Failed to save note. Please try again.');
+    }
   };
 
   const addTask = () => {
@@ -33,6 +64,29 @@ export default function RecordActivityTabs({ activities = [], initialNotes = [],
   const toggleTask = (id) => {
     setTasks((current) => current.map((task) => (task.id === id ? { ...task, done: !task.done } : task)));
   };
+
+  const toggleExpanded = (id) => {
+    setExpandedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const combinedFeed = [
+    ...activities,
+    ...notes.map((note) => ({
+      id: note.id,
+      title: `Note added by ${note.author}`,
+      description: note.text,
+      timestamp: note.timestamp,
+      isNote: true,
+    })),
+  ].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
   return (
     <div className="rounded-3xl border border-slate-200 bg-white">
@@ -56,18 +110,35 @@ export default function RecordActivityTabs({ activities = [], initialNotes = [],
       <div className="p-6">
         {activeTab === 'All Activities' && (
           <div className="space-y-4">
-            {activities.length === 0 ? (
+            {combinedFeed.length === 0 ? (
               <p className="text-sm text-slate-400">No activity logged yet.</p>
             ) : (
-              activities.map((activity) => (
-                <div key={activity.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold text-slate-900">{activity.title}</p>
-                    <p className="text-xs text-slate-400">{new Date(activity.timestamp).toLocaleString()}</p>
+              combinedFeed.map((item) => {
+                const isExpanded = expandedIds.has(item.id);
+                return (
+                  <div key={item.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                    <button
+                      type="button"
+                      onClick={() => toggleExpanded(item.id)}
+                      className="flex w-full items-center justify-between text-left focus:outline-none"
+                    >
+                      <div className="flex items-center gap-2">
+                        <ChevronRight
+                          size={16}
+                          className={`text-slate-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                        />
+                        <p className="text-sm font-semibold text-slate-900">{item.title}</p>
+                      </div>
+                      <p className="text-xs text-slate-400">
+                        {item.timestamp ? new Date(item.timestamp).toLocaleString() : '—'}
+                      </p>
+                    </button>
+                    {isExpanded && (
+                      <p className="mt-2 pl-6 text-sm text-slate-600 whitespace-pre-wrap">{item.description}</p>
+                    )}
                   </div>
-                  <p className="mt-1 text-sm text-slate-600">{activity.description}</p>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         )}
@@ -93,16 +164,20 @@ export default function RecordActivityTabs({ activities = [], initialNotes = [],
               </div>
             </div>
 
-            {notes.length === 0 ? (
+            {notesLoading ? (
+              <p className="text-sm text-slate-400">Loading notes…</p>
+            ) : notes.length === 0 ? (
               <p className="text-sm text-slate-400">No notes yet.</p>
             ) : (
               notes.map((note) => (
                 <div key={note.id} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-semibold text-slate-900">{note.author}</p>
-                    <p className="text-xs text-slate-400">{new Date(note.timestamp).toLocaleString()}</p>
+                    <p className="text-xs text-slate-400">
+                      {note.timestamp ? new Date(note.timestamp).toLocaleString() : '—'}
+                    </p>
                   </div>
-                  <p className="mt-1 text-sm text-slate-700">{note.text}</p>
+                  <p className="mt-1 text-sm text-slate-700 whitespace-pre-wrap">{note.text}</p>
                 </div>
               ))
             )}
@@ -173,14 +248,8 @@ RecordActivityTabs.propTypes = {
       timestamp: PropTypes.string.isRequired,
     })
   ),
-  initialNotes: PropTypes.arrayOf(
-    PropTypes.shape({
-      id: PropTypes.string.isRequired,
-      text: PropTypes.string.isRequired,
-      author: PropTypes.string.isRequired,
-      timestamp: PropTypes.string.isRequired,
-    })
-  ),
+  entityType: PropTypes.string.isRequired,
+  entityId: PropTypes.string.isRequired,
   initialTasks: PropTypes.arrayOf(
     PropTypes.shape({
       id: PropTypes.string.isRequired,

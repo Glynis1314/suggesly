@@ -169,13 +169,13 @@ export default function ContactDetailPage() {
       id: 'created',
       title: 'Contact Created',
       description: `This contact was created${contact.owner ? ` and assigned to ${contact.owner}` : ''}.`,
-      timestamp: contact.createdDateSystem || contact.created,
+      timestamp: contact.createdAt,
     },
     {
       id: 'stage',
       title: 'Stage Updated',
       description: `Contact is currently in the "${contact.stage}" stage.`,
-      timestamp: contact.activity,
+      timestamp: contact.updatedAt,
     },
   ];
 
@@ -256,11 +256,8 @@ export default function ContactDetailPage() {
         <div>
           <RecordActivityTabs
             activities={activities}
-            initialNotes={
-              contact.notes
-                ? [{ id: 'seed-note', text: contact.notes, author: contact.owner || 'Unknown', timestamp: contact.createdDateSystem || contact.created }]
-                : []
-            }
+            entityType="contact"
+            entityId={contact._id}
             initialTasks={
               contact.nextTask
                 ? [{ id: 'seed-task', label: contact.nextTask, dueDate: '', done: false }]

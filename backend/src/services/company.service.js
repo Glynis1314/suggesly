@@ -113,12 +113,26 @@ async function bulkImportCompanies(rowsInput) {
   };
 }
 
+async function bulkUpdate(ids, updates) {
+  const cleanUpdates = { ...updates };
+  if (cleanUpdates.owner) {
+    cleanUpdates.owner = await resolveUser(cleanUpdates.owner);
+  }
+  return await crud.bulkUpdate(ids, cleanUpdates);
+}
+
+async function bulkDelete(ids) {
+  return await crud.bulkDelete(ids);
+}
+
 module.exports = {
   create,
   getAll: getAllCompanies,
   getById: crud.getById,
   update,
   delete: crud.delete,
+  bulkUpdate,
+  bulkDelete,
 
   // Keep original function mappings for backwards compatibility if needed
   createCompany: create,

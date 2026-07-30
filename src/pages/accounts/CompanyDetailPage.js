@@ -174,13 +174,13 @@ export default function CompanyDetailPage() {
       id: 'created',
       title: 'Company Created',
       description: `This company was created${account.owner ? ` and assigned to ${account.owner}` : ''}.`,
-      timestamp: account.createdDate,
+      timestamp: account.createdAt,
     },
     {
       id: 'stage',
       title: 'Stage Updated',
       description: `Company is currently in the "${account.stage}" stage.`,
-      timestamp: account.lastActivityDate,
+      timestamp: account.updatedAt,
     },
   ];
 
@@ -269,11 +269,8 @@ export default function CompanyDetailPage() {
         <div>
           <RecordActivityTabs
             activities={activities}
-            initialNotes={
-              account.notes
-                ? [{ id: 'seed-note', text: account.notes, author: account.owner || 'Unknown', timestamp: account.createdDate }]
-                : []
-            }
+            entityType="company"
+            entityId={account._id}
             initialTasks={
               account.nextSteps
                 ? [{ id: 'seed-task', label: account.nextSteps, dueDate: account.nextActionDate, done: false }]

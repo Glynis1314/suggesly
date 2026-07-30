@@ -10,6 +10,17 @@ import { usePagination } from '../../utils/usePagination';
 import { useTableColumns } from '../../utils/useTableColumns';
 import DealsFilterBar from './DealsFilterBar';
 import DealsTable from './DealsTable';
+import BulkActionBar from '../../components/BulkActionBar';
+import BulkEditModal from '../../components/BulkEditModal';
+
+const dealFields = [
+  { id: 'dealOwner', label: 'Owner', group: 'Deal Details', type: 'owner' },
+  { id: 'dealStage', label: 'Stage', group: 'Deal Details', type: 'stage', options: dealStageOptions },
+  { id: 'source', label: 'Source', group: 'Deal Details', type: 'text' },
+  { id: 'notes', label: 'Notes', group: 'Notes & Follow-up', type: 'textarea' },
+];
+
+const teamOwnerOptions = ['Alex Rivera', 'Jane Smith', 'Sarah Jenkins', 'Kevin Malone', 'Michael Chen', 'Olivia Lee'];
 
 const dealSampleHeaders = [
   'Deal Name',
@@ -53,6 +64,9 @@ export default function DealsPage() {
     error: dealsError,
     createDeal,
     importDeals,
+    updateDeal,
+    bulkUpdateDeals,
+    bulkDeleteDeals,
   } = useDeals();
 
   const {
@@ -88,6 +102,9 @@ export default function DealsPage() {
   // Modals
   const [showAddDeal, setShowAddDeal] = useState(false);
   const [showBulkImport, setShowBulkImport] = useState(false);
+  const [showBulkEdit, setShowBulkEdit] = useState(false);
+  const [lockedProperty, setLockedProperty] = useState(null);
+  const [selectedRows, setSelectedRows] = useState([]);
 
   const deals = useMemo(() => {
     return (rawDeals || []).map((d) => ({
@@ -128,6 +145,28 @@ export default function DealsPage() {
     }
   };
 
+  const handleBulkUpdate = async (ids, updates) => {
+    await bulkUpdateDeals(ids, updates);
+    setSelectedRows([]);
+  };
+
+  const handleBulkDelete = async () => {
+    if (window.confirm(`Delete ${selectedRows.length} deals? This cannot be undone.`)) {
+      await bulkDeleteDeals(selectedRows);
+      setSelectedRows([]);
+    }
+  };
+
+  const openAssignModal = () => {
+    setLockedProperty('dealOwner');
+    setShowBulkEdit(true);
+  };
+
+  const openBulkEditModal = () => {
+    setLockedProperty(null);
+    setShowBulkEdit(true);
+  };
+
   const {
     columns,
     dragOverColIndex,
@@ -143,6 +182,7 @@ export default function DealsPage() {
     { id: 'dealStage', label: 'Stage', width: 160 },
     { id: 'dealCreatedDate', label: 'Create Date', width: 160, sortable: true, sortKey: 'dealCreatedDate' },
     { id: 'lastActivityDate', label: 'Last Activity', width: 240, sortable: true, sortKey: 'lastActivityDate' },
+    { id: 'notes', label: 'Notes', width: 220 },
     { id: 'upcomingTask', label: 'Upcoming Task', width: 200 },
   ]);
 
@@ -161,7 +201,12 @@ export default function DealsPage() {
     [deals],
   );
 
-  const handleSort = (key) => {
+  const handleSort = (key, direction) => {
+    if (direction) {
+      setSortKey(key);
+      setSortDirection(direction);
+      return;
+    }
     if (sortKey === key) {
       setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'));
       return;
@@ -332,34 +377,55 @@ export default function DealsPage() {
         ))}
       </div>
 
-      {/* Filter Bar */}
-      <DealsFilterBar
-        globalSearch={globalSearch}
-        setGlobalSearch={setGlobalSearch}
-        selectedView={selectedView}
-        setSelectedView={setSelectedView}
-        selectedStage={selectedStage}
-        setSelectedStage={setSelectedStage}
-        selectedOwner={selectedOwner}
-        setSelectedOwner={setSelectedOwner}
-        selectedCountries={selectedCountries}
-        setSelectedCountries={setSelectedCountries}
-        selectedCities={selectedCities}
-        setSelectedCities={setSelectedCities}
-        dealNameFilter={dealNameFilter}
-        setDealNameFilter={setDealNameFilter}
-        dealSizeRange={dealSizeRange}
-        setDealSizeRange={setDealSizeRange}
-        dealSizeSortDirection={dealSizeSortDirection}
-        setDealSizeSortDirection={setDealSizeSortDirection}
-        setSortKey={setSortKey}
-        setSortDirection={setSortDirection}
-        stageOptions={dealStageOptions}
-        ownerOptions={ownerOptions}
-        countryOptions={countryOptions}
-        cityOptions={cityOptions}
-        activeChips={activeChips}
-        clearAllFilters={clearAllFilters}
+      {/* Filter / Bulk Actions Bar */}
+      {selectedRows.length > 0 ? (
+        <BulkActionBar
+          selectedCount={selectedRows.length}
+          onClear={() => setSelectedRows([])}
+          onAssign={openAssignModal}
+          onBulkEdit={openBulkEditModal}
+          onDelete={handleBulkDelete}
+        />
+      ) : (
+        <DealsFilterBar
+          globalSearch={globalSearch}
+          setGlobalSearch={setGlobalSearch}
+          selectedView={selectedView}
+          setSelectedView={setSelectedView}
+          selectedStage={selectedStage}
+          setSelectedStage={setSelectedStage}
+          selectedOwner={selectedOwner}
+          setSelectedOwner={setSelectedOwner}
+          selectedCountries={selectedCountries}
+          setSelectedCountries={setSelectedCountries}
+          selectedCities={selectedCities}
+          setSelectedCities={setSelectedCities}
+          dealNameFilter={dealNameFilter}
+          setDealNameFilter={setDealNameFilter}
+          dealSizeRange={dealSizeRange}
+          setDealSizeRange={setDealSizeRange}
+          dealSizeSortDirection={dealSizeSortDirection}
+          setDealSizeSortDirection={setDealSizeSortDirection}
+          setSortKey={setSortKey}
+          setSortDirection={setSortDirection}
+          stageOptions={dealStageOptions}
+          ownerOptions={ownerOptions}
+          countryOptions={countryOptions}
+          cityOptions={cityOptions}
+          activeChips={activeChips}
+          clearAllFilters={clearAllFilters}
+        />
+      )}
+
+      <BulkEditModal
+        open={showBulkEdit}
+        onClose={() => setShowBulkEdit(false)}
+        ids={selectedRows}
+        fields={dealFields}
+        entityLabel="deals"
+        ownerOptions={teamOwnerOptions}
+        onUpdate={handleBulkUpdate}
+        lockedProperty={lockedProperty}
       />
 
       {/* Main Table */}
@@ -378,6 +444,11 @@ export default function DealsPage() {
         handleDrop={handleDrop}
         visibleCount={visibleCount}
         loadMore={loadMore}
+        ownerOptions={teamOwnerOptions}
+        dealStageOptions={dealStageOptions}
+        updateDeal={updateDeal}
+        selectedRows={selectedRows}
+        setSelectedRows={setSelectedRows}
       />
 
       {/* Modals */}

@@ -13,6 +13,8 @@ import {
 import { useAccounts } from '../../context/AccountsContext';
 import AccountsFilterBar from './AccountsFilterBar';
 import AccountsTable from './AccountsTable';
+import BulkActionBar from '../../components/BulkActionBar';
+import BulkEditModal from '../../components/BulkEditModal';
 
 const companySampleHeaders = [
   'Company Name',
@@ -56,6 +58,21 @@ const companySampleData = [
   },
 ];
 
+const companyFields = [
+  { id: 'owner', label: 'Owner', group: 'Company Details', type: 'owner' },
+  { id: 'source', label: 'Source', group: 'Company Details', type: 'multiselect', options: accountSourceOptions },
+  { id: 'priority', label: 'Priority', group: 'Company Details', type: 'select', options: accountPriorityOptions },
+  { id: 'stage', label: 'Stage', group: 'Company Details', type: 'stage', options: accountStageOptions },
+  { id: 'notes', label: 'Notes', group: 'Notes & Follow-up', type: 'textarea' },
+  { id: 'nextSteps', label: 'Next Steps', group: 'Notes & Follow-up', type: 'text' },
+  { id: 'nextActionDate', label: 'Next Action Date', group: 'Notes & Follow-up', type: 'date' },
+  { id: 'country', label: 'Country', group: 'Additional Information', type: 'text' },
+  { id: 'city', label: 'City', group: 'Additional Information', type: 'text' },
+  { id: 'employeeSize', label: 'Employee Size', group: 'Additional Information', type: 'select', options: accountEmployeeSizeOptions },
+  { id: 'linkedin', label: 'LinkedIn URL', group: 'Additional Information', type: 'linkedin' },
+];
+
+
 const propertyOptions = [
   { key: 'company', label: 'Company Name', type: 'text' },
   { key: 'owner', label: 'Owner', type: 'select' },
@@ -97,10 +114,14 @@ export default function AccountsPage() {
     createAccount,
     importAccounts,
     updateAccount,
+    bulkUpdateAccounts,
+    bulkDeleteAccounts,
   } = useAccounts();
 
   const [showAddCompany, setShowAddCompany] = useState(false);
   const [showBulkImport, setShowBulkImport] = useState(false);
+  const [showBulkEdit, setShowBulkEdit] = useState(false);
+  const [lockedProperty, setLockedProperty] = useState(null);
 
   // Filter Bar States
   const [selectedView, setSelectedView] = useState('All Companies');
@@ -116,6 +137,28 @@ export default function AccountsPage() {
   // Sorting
   const [sortKey, setSortKey] = useState('createdDate');
   const [sortDirection, setSortDirection] = useState('desc');
+
+  const handleBulkUpdate = async (ids, updates) => {
+    await bulkUpdateAccounts(ids, updates);
+    setSelectedRows([]);
+  };
+
+  const handleBulkDelete = async () => {
+    if (window.confirm(`Delete ${selectedRows.length} companies? This cannot be undone.`)) {
+      await bulkDeleteAccounts(selectedRows);
+      setSelectedRows([]);
+    }
+  };
+
+  const openAssignModal = () => {
+    setLockedProperty('owner');
+    setShowBulkEdit(true);
+  };
+
+  const openBulkEditModal = () => {
+    setLockedProperty(null);
+    setShowBulkEdit(true);
+  };
 
   const companies = useMemo(() => {
     return (rawAccounts || []).map((c) => ({
@@ -214,7 +257,12 @@ export default function AccountsPage() {
   const filterPropertyType = propertyOptions.find((option) => option.key === filterProperty)?.type || 'text';
   const currentUser = 'Alex Rivera';
 
-  const handleSort = (key) => {
+  const handleSort = (key, direction) => {
+    if (direction) {
+      setSortKey(key);
+      setSortDirection(direction);
+      return;
+    }
     if (sortKey === key) {
       setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'));
       return;
@@ -389,30 +437,51 @@ export default function AccountsPage() {
         }}
       />
 
-      {/* Filter Bar */}
-      <AccountsFilterBar
-        selectedView={selectedView}
-        setSelectedView={setSelectedView}
-        showViewDropdown={showViewDropdown}
-        setShowViewDropdown={setShowViewDropdown}
-        activeFilterChips={activeFilterChips}
-        clearAllFilters={clearAllFilters}
-        showFilterBuilder={showFilterBuilder}
-        setShowFilterBuilder={setShowFilterBuilder}
-        filterProperty={filterProperty}
-        setFilterProperty={setFilterProperty}
-        filterCondition={filterCondition}
-        setFilterCondition={setFilterCondition}
-        filterValue={filterValue}
-        setFilterValue={setFilterValue}
-        filterValueExtra={filterValueExtra}
-        setFilterValueExtra={setFilterValueExtra}
-        filters={filters}
-        setFilters={setFilters}
-        optionsByProperty={optionsByProperty}
-        propertyOptions={propertyOptions}
-        conditionOptions={conditionOptions}
-        filterPropertyType={filterPropertyType}
+      {/* Filter / Bulk Actions Bar */}
+      {selectedRows.length > 0 ? (
+        <BulkActionBar
+          selectedCount={selectedRows.length}
+          onClear={() => setSelectedRows([])}
+          onAssign={openAssignModal}
+          onBulkEdit={openBulkEditModal}
+          onDelete={handleBulkDelete}
+        />
+      ) : (
+        <AccountsFilterBar
+          selectedView={selectedView}
+          setSelectedView={setSelectedView}
+          showViewDropdown={showViewDropdown}
+          setShowViewDropdown={setShowViewDropdown}
+          activeFilterChips={activeFilterChips}
+          clearAllFilters={clearAllFilters}
+          showFilterBuilder={showFilterBuilder}
+          setShowFilterBuilder={setShowFilterBuilder}
+          filterProperty={filterProperty}
+          setFilterProperty={setFilterProperty}
+          filterCondition={filterCondition}
+          setFilterCondition={setFilterCondition}
+          filterValue={filterValue}
+          setFilterValue={setFilterValue}
+          filterValueExtra={filterValueExtra}
+          setFilterValueExtra={setFilterValueExtra}
+          filters={filters}
+          setFilters={setFilters}
+          optionsByProperty={optionsByProperty}
+          propertyOptions={propertyOptions}
+          conditionOptions={conditionOptions}
+          filterPropertyType={filterPropertyType}
+        />
+      )}
+
+      <BulkEditModal
+        open={showBulkEdit}
+        onClose={() => setShowBulkEdit(false)}
+        ids={selectedRows}
+        fields={companyFields}
+        entityLabel="companies"
+        ownerOptions={ownerOptions}
+        onUpdate={handleBulkUpdate}
+        lockedProperty={lockedProperty}
       />
 
       {/* Accounts Table */}

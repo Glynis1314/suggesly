@@ -163,13 +163,13 @@ export default function DealDetailPage() {
       id: 'created',
       title: 'Deal Created',
       description: `This deal was created${deal.dealOwner ? ` by ${deal.dealOwner}` : ''}.`,
-      timestamp: deal.dealCreatedDate,
+      timestamp: deal.createdAt,
     },
     {
       id: 'stage',
       title: 'Stage Updated',
       description: `Deal is currently in the "${deal.dealStage}" stage.`,
-      timestamp: deal.lastActivityDate,
+      timestamp: deal.updatedAt,
     },
   ];
 
@@ -246,11 +246,8 @@ export default function DealDetailPage() {
         <div>
           <RecordActivityTabs
             activities={activities}
-            initialNotes={
-              deal.remarks
-                ? [{ id: 'seed-note', text: deal.remarks, author: deal.dealOwner || 'Unknown', timestamp: deal.dealCreatedDate }]
-                : []
-            }
+            entityType="deal"
+            entityId={deal._id}
             initialTasks={
               deal.nextAction
                 ? [{ id: 'seed-task', label: deal.nextAction, dueDate: deal.nextStepDueDate, done: false }]

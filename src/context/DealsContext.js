@@ -77,6 +77,26 @@ export function DealsProvider({ children }) {
     }
   };
 
+  const bulkUpdateDeals = async (ids, updates) => {
+    try {
+      await axiosInstance.patch('/deals/bulk-update', { ids, updates });
+      await fetchDeals();
+    } catch (err) {
+      console.error('Error bulk updating deals in context:', err);
+      throw err;
+    }
+  };
+
+  const bulkDeleteDeals = async (ids) => {
+    try {
+      await axiosInstance.delete('/deals/bulk-delete', { data: { ids } });
+      setDeals((current) => current.filter((d) => !ids.map(String).includes(String(d._id || d.id))));
+    } catch (err) {
+      console.error('Error bulk deleting deals in context:', err);
+      throw err;
+    }
+  };
+
   return (
     <DealsContext.Provider
       value={{
@@ -87,6 +107,8 @@ export function DealsProvider({ children }) {
         importDeals,
         updateDeal,
         deleteDeal,
+        bulkUpdateDeals,
+        bulkDeleteDeals,
         refetch: fetchDeals,
       }}
     >

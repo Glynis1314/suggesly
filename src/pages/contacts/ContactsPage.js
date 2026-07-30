@@ -10,6 +10,18 @@ import { useTableColumns } from '../../utils/useTableColumns';
 import { usePagination } from '../../utils/usePagination';
 import ContactsFilterBar from './ContactsFilterBar';
 import ContactsTable from './ContactsTable';
+import BulkActionBar from '../../components/BulkActionBar';
+import BulkEditModal from '../../components/BulkEditModal';
+
+const contactFields = [
+  { id: 'owner', label: 'Owner', group: 'Contact Details', type: 'owner' },
+  { id: 'stage', label: 'Stage', group: 'Contact Details', type: 'stage', options: contactStageOptions },
+  { id: 'company', label: 'Company', group: 'Contact Details', type: 'text' },
+  { id: 'phone', label: 'Phone', group: 'Contact Details', type: 'text' },
+  { id: 'location', label: 'Location', group: 'Contact Details', type: 'text' },
+  { id: 'notes', label: 'Notes', group: 'Notes & Follow-up', type: 'textarea' },
+  { id: 'linkedin', label: 'LinkedIn', group: 'Additional Information', type: 'linkedin' },
+];
 
 const contactSampleHeaders = [
   'Contact Name',
@@ -44,6 +56,8 @@ export default function ContactsPage() {
     createContact,
     importContacts,
     updateContact,
+    bulkUpdateContacts,
+    bulkDeleteContacts,
   } = useContacts();
 
   const {
@@ -57,6 +71,9 @@ export default function ContactsPage() {
 
   const [showAddContact, setShowAddContact] = useState(false);
   const [showBulkImport, setShowBulkImport] = useState(false);
+  const [showBulkEdit, setShowBulkEdit] = useState(false);
+  const [lockedProperty, setLockedProperty] = useState(null);
+  const [selectedRows, setSelectedRows] = useState([]);
 
   // Filters State
   const [selectedStage, setSelectedStage] = useState('All');
@@ -113,6 +130,28 @@ export default function ContactsPage() {
     }
   };
 
+  const handleBulkUpdate = async (ids, updates) => {
+    await bulkUpdateContacts(ids, updates);
+    setSelectedRows([]);
+  };
+
+  const handleBulkDelete = async () => {
+    if (window.confirm(`Delete ${selectedRows.length} contacts? This cannot be undone.`)) {
+      await bulkDeleteContacts(selectedRows);
+      setSelectedRows([]);
+    }
+  };
+
+  const openAssignModal = () => {
+    setLockedProperty('owner');
+    setShowBulkEdit(true);
+  };
+
+  const openBulkEditModal = () => {
+    setLockedProperty(null);
+    setShowBulkEdit(true);
+  };
+
   const {
     columns,
     dragOverColIndex,
@@ -123,6 +162,7 @@ export default function ContactsPage() {
   } = useTableColumns([
     { id: 'name', label: 'Contact Name', width: 220 },
     { id: 'company', label: 'Company', width: 140, sortable: true, sortKey: 'company' },
+    { id: 'owner', label: 'Owner', width: 160 },
     { id: 'email', label: 'Email', width: 180, sortable: true, sortKey: 'email' },
     { id: 'phone', label: 'Phone Number', width: 140 },
     { id: 'linkedin', label: 'LinkedIn', width: 80 },
@@ -149,7 +189,12 @@ export default function ContactsPage() {
     setSelectedCountry('Any');
   };
 
-  const handleSort = (key) => {
+  const handleSort = (key, direction) => {
+    if (direction) {
+      setSortKey(key);
+      setSortDirection(direction);
+      return;
+    }
     if (sortKey === key) {
       setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
     } else {
@@ -278,18 +323,39 @@ export default function ContactsPage() {
         <StatCard title="Customers" value={sortedAndFiltered.filter(c => c.stage === 'CUSTOMER').length} subtle />
       </div>
 
-      {/* Filter Bar */}
-      <ContactsFilterBar
-        selectedStage={selectedStage}
-        setSelectedStage={setSelectedStage}
-        selectedOwner={selectedOwner}
-        setSelectedOwner={setSelectedOwner}
-        selectedCountry={selectedCountry}
-        setSelectedCountry={setSelectedCountry}
-        contactStageOptions={contactStageOptions}
+      {/* Filter / Bulk Actions Bar */}
+      {selectedRows.length > 0 ? (
+        <BulkActionBar
+          selectedCount={selectedRows.length}
+          onClear={() => setSelectedRows([])}
+          onAssign={openAssignModal}
+          onBulkEdit={openBulkEditModal}
+          onDelete={handleBulkDelete}
+        />
+      ) : (
+        <ContactsFilterBar
+          selectedStage={selectedStage}
+          setSelectedStage={setSelectedStage}
+          selectedOwner={selectedOwner}
+          setSelectedOwner={setSelectedOwner}
+          selectedCountry={selectedCountry}
+          setSelectedCountry={setSelectedCountry}
+          contactStageOptions={contactStageOptions}
+          ownerOptions={ownerOptions}
+          countryOptions={countryOptions}
+          clearFilters={clearFilters}
+        />
+      )}
+
+      <BulkEditModal
+        open={showBulkEdit}
+        onClose={() => setShowBulkEdit(false)}
+        ids={selectedRows}
+        fields={contactFields}
+        entityLabel="contacts"
         ownerOptions={ownerOptions}
-        countryOptions={countryOptions}
-        clearFilters={clearFilters}
+        onUpdate={handleBulkUpdate}
+        lockedProperty={lockedProperty}
       />
 
       {/* Contacts Table */}
@@ -309,6 +375,9 @@ export default function ContactsPage() {
         visibleCount={visibleCount}
         loadMore={loadMore}
         updateContact={handleUpdateContact}
+        ownerOptions={ownerOptions}
+        selectedRows={selectedRows}
+        setSelectedRows={setSelectedRows}
       />
     </section>
   );

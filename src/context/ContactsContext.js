@@ -75,6 +75,26 @@ export function ContactsProvider({ children }) {
     }
   };
 
+  const bulkUpdateContacts = async (ids, updates) => {
+    try {
+      await axiosInstance.patch('/contacts/bulk-update', { ids, updates });
+      await fetchContacts();
+    } catch (err) {
+      console.error('Error bulk updating contacts in context:', err);
+      throw err;
+    }
+  };
+
+  const bulkDeleteContacts = async (ids) => {
+    try {
+      await axiosInstance.delete('/contacts/bulk-delete', { data: { ids } });
+      setContacts((current) => current.filter((c) => !ids.map(String).includes(String(c._id || c.id))));
+    } catch (err) {
+      console.error('Error bulk deleting contacts in context:', err);
+      throw err;
+    }
+  };
+
   return (
     <ContactsContext.Provider
       value={{
@@ -85,6 +105,8 @@ export function ContactsProvider({ children }) {
         importContacts,
         updateContact,
         deleteContact,
+        bulkUpdateContacts,
+        bulkDeleteContacts,
         refetch: fetchContacts,
       }}
     >

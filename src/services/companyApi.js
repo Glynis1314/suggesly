@@ -113,3 +113,21 @@ export const archiveCompany = async (id) => {
     throw error;
   }
 };
+
+export const bulkUpdateCompanies = async (ids, updates) => {
+  try {
+    return await axiosInstance.patch(`${COMPANIES}/bulk-update`, { ids, updates });
+  } catch (error) {
+    console.error('Error in bulkUpdateCompanies API call:', error);
+    throw error;
+  }
+};
+
+export const bulkDeleteCompanies = async (ids) => {
+  try {
+    return await axiosInstance.delete(`${COMPANIES}/bulk-delete`, { data: { ids } });
+  } catch (error) {
+    console.error('Error in bulkDeleteCompanies API call:', error);
+    throw error;
+  }
+};
