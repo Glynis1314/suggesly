@@ -67,6 +67,17 @@ export function useTableColumns(initialColumns) {
     setDragOverColIndex(null);
   };
 
+  const toggleColumn = (columnDef) => {
+    setColumns((prev) => {
+      const exists = prev.some((col) => col.id === columnDef.id);
+      if (exists) {
+        return prev.filter((col) => col.id !== columnDef.id);
+      } else {
+        return [...prev, columnDef];
+      }
+    });
+  };
+
   return {
     columns,
     draggedColIndex,
@@ -77,5 +88,7 @@ export function useTableColumns(initialColumns) {
     handleDrop,
     setDraggedColIndex,
     setDragOverColIndex,
+    setColumns,
+    toggleColumn,
   };
 }

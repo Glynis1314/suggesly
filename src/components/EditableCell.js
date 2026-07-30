@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import OwnerAvatar from './OwnerAvatar';
 import StageBadge from './StageBadge';
@@ -21,7 +22,10 @@ export default function EditableCell({ value, type = 'text', options = [], onSav
   const [local, setLocal] = useState(type === 'multiselect' ? value ?? [] : value ?? '');
   const [newTag, setNewTag] = useState('');
   const [hovering, setHovering] = useState(false);
+  const [coords, setCoords] = useState({ top: 0, left: 0, width: 0, height: 0 });
+  const [popoverDirection, setPopoverDirection] = useState('top');
   const ref = useRef(null);
+  const cellRef = useRef(null);
 
   useEffect(() => {
     setLocal(type === 'multiselect' ? value ?? [] : value ?? '');
@@ -267,16 +271,60 @@ export default function EditableCell({ value, type = 'text', options = [], onSav
 
   const showTooltip = !editing && value && (type === 'textarea' || (type === 'text' && typeof value === 'string' && value.length > 40));
 
+  const handleMouseEnter = () => {
+    if (showTooltip && cellRef.current) {
+      const rect = cellRef.current.getBoundingClientRect();
+      setCoords({
+        top: rect.top + window.scrollY,
+        bottom: rect.bottom + window.scrollY,
+        left: rect.left + window.scrollX,
+        width: rect.width,
+        height: rect.height,
+      });
+      // Position above (top) unless space is constrained
+      if (rect.top < 100) {
+        setPopoverDirection('bottom');
+      } else {
+        setPopoverDirection('top');
+      }
+      setHovering(true);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setHovering(false);
+  };
+
+  const tooltipContent = showTooltip && hovering && (
+    <div
+      style={{
+        position: 'absolute',
+        top: popoverDirection === 'top' ? `${coords.top - 8}px` : `${coords.bottom + 8}px`,
+        left: `${coords.left + coords.width / 2}px`,
+        transform: popoverDirection === 'top' ? 'translate(-50%, -100%)' : 'translate(-50%, 0)',
+      }}
+      className="z-[9999] w-80 max-w-[320px] rounded-lg bg-slate-800 px-3 py-2 shadow-lg text-sm text-white whitespace-pre-wrap text-left normal-case break-words pointer-events-none"
+    >
+      {value}
+      <div
+        className={`absolute left-1/2 -translate-x-1/2 w-2 h-2 bg-slate-800 rotate-45 ${
+          popoverDirection === 'top' ? 'bottom-[-4px]' : 'top-[-4px]'
+        }`}
+      />
+    </div>
+  );
+
   return (
     <div
+      ref={cellRef}
       onClick={() => {
         if (!editing) {
           setEditing(true);
           setHovering(false);
         }
       }}
-      onMouseEnter={() => showTooltip && setHovering(true)}
-      onMouseLeave={() => setHovering(false)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       className="relative hover:bg-slate-50 cursor-text rounded w-full min-w-0"
     >
       {editing ? (
@@ -300,11 +348,7 @@ export default function EditableCell({ value, type = 'text', options = [], onSav
               value || '—'
             )}
           </div>
-          {showTooltip && hovering && (
-            <div className="absolute left-0 top-full mt-2 w-80 max-w-[320px] rounded-2xl border border-slate-200 bg-white p-3 shadow-xl z-50 text-sm text-slate-700 whitespace-pre-wrap text-left normal-case break-words">
-              {value}
-            </div>
-          )}
+          {showTooltip && hovering && createPortal(tooltipContent, document.body)}
         </>
       )}
     </div>

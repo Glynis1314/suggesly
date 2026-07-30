@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import AddCompanyModal from '../../components/AddCompanyModal';
 import BulkImportModal from '../../components/BulkImportModal';
+import ColumnPickerModal from '../../components/ColumnPickerModal';
 
 import { useTableColumns } from '../../utils/useTableColumns';
 import { usePagination } from '../../utils/usePagination';
@@ -72,6 +73,24 @@ const companyFields = [
   { id: 'linkedin', label: 'LinkedIn URL', group: 'Additional Information', type: 'linkedin' },
 ];
 
+const ALL_COMPANY_COLUMNS = [
+  { id: 'company', label: 'Company Name', width: 220 },
+  { id: 'owner', label: 'Owner', width: 140 },
+  { id: 'source', label: 'Source', width: 140 },
+  { id: 'priority', label: 'Priority', width: 90 },
+  { id: 'stage', label: 'Stage', width: 120 },
+  { id: 'notes', label: 'Notes', width: 180 },
+  { id: 'nextSteps', label: 'Next Steps', width: 160 },
+  { id: 'nextActionDate', label: 'Next Action', width: 110 },
+  { id: 'lastActivityDate', label: 'Last Activity', width: 110 },
+  { id: 'createdDate', label: 'Created', width: 110 },
+  { id: 'country', label: 'Country', width: 100 },
+  { id: 'custom', label: 'Custom', width: 100 },
+  { id: 'city', label: 'City', width: 100 },
+  { id: 'employeeSize', label: 'Employee Size', width: 110 },
+  { id: 'linkedin', label: 'LinkedIn URL', width: 100 },
+];
+
 
 const propertyOptions = [
   { key: 'company', label: 'Company Name', type: 'text' },
@@ -121,6 +140,7 @@ export default function AccountsPage() {
   const [showAddCompany, setShowAddCompany] = useState(false);
   const [showBulkImport, setShowBulkImport] = useState(false);
   const [showBulkEdit, setShowBulkEdit] = useState(false);
+  const [showColumnPicker, setShowColumnPicker] = useState(false);
   const [lockedProperty, setLockedProperty] = useState(null);
 
   // Filter Bar States
@@ -223,23 +243,8 @@ export default function AccountsPage() {
     handleDragStart,
     handleDragOver,
     handleDrop,
-  } = useTableColumns([
-    { id: 'company', label: 'Company Name', width: 220 },
-    { id: 'owner', label: 'Owner', width: 140 },
-    { id: 'source', label: 'Source', width: 140 },
-    { id: 'priority', label: 'Priority', width: 90 },
-    { id: 'stage', label: 'Stage', width: 120 },
-    { id: 'notes', label: 'Notes', width: 180 },
-    { id: 'nextSteps', label: 'Next Steps', width: 160 },
-    { id: 'nextActionDate', label: 'Next Action', width: 110 },
-    { id: 'lastActivityDate', label: 'Last Activity', width: 110 },
-    { id: 'createdDate', label: 'Created', width: 110 },
-    { id: 'country', label: 'Country', width: 100 },
-    { id: 'custom', label: 'Custom', width: 100 },
-    { id: 'city', label: 'City', width: 100 },
-    { id: 'employeeSize', label: 'Employee Size', width: 110 },
-    { id: 'linkedin', label: 'LinkedIn URL', width: 100 },
-  ]);
+    setColumns,
+  } = useTableColumns(ALL_COMPANY_COLUMNS);
 
   const ownerOptions = useMemo(
     () => Array.from(new Set(companies.map((row) => row.owner).filter(Boolean))).sort(),
@@ -379,6 +384,13 @@ export default function AccountsPage() {
         <div className="flex gap-3">
           <button
             type="button"
+            onClick={() => setShowColumnPicker(true)}
+            className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-xl font-medium text-slate-700 transition hover:bg-slate-50"
+          >
+            Add Columns
+          </button>
+          <button
+            type="button"
             onClick={() => setShowBulkImport(true)}
             className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-xl font-medium text-slate-700 transition hover:bg-slate-50"
           >
@@ -393,6 +405,14 @@ export default function AccountsPage() {
           </button>
         </div>
       </div>
+
+      <ColumnPickerModal
+        open={showColumnPicker}
+        onClose={() => setShowColumnPicker(false)}
+        allColumns={ALL_COMPANY_COLUMNS}
+        visibleColumns={columns}
+        onApply={setColumns}
+      />
 
       <AddCompanyModal
         open={showAddCompany}
