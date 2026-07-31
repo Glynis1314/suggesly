@@ -35,6 +35,7 @@ function App() {
       Companies: '/accounts',
       Accounts: '/accounts',
       Deals: '/deals',
+      Tasks: '/tasks',
       Contacts: '/contacts',
       Template: '/templates',
       Sequences: '/sequences',
