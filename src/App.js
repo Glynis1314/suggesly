@@ -8,6 +8,7 @@ import AccountsPage from './pages/accounts/AccountsPage';
 import CompanyDetailPage from './pages/accounts/CompanyDetailPage';
 import ContactsPage from './pages/contacts/ContactsPage';
 import ContactDetailPage from './pages/contacts/ContactDetailPage';
+import TasksPage from './pages/tasks/TasksPage';
 import ProfilePage from './pages/profile/ProfilePage';
 import LoginPage from './pages/auth/LoginPage';
 import SignupPage from './pages/auth/SignupPage';
@@ -24,6 +25,7 @@ function App() {
     if (location.pathname.startsWith('/deals')) return 'Deals';
     if (location.pathname.startsWith('/accounts')) return 'Companies';
     if (location.pathname.startsWith('/contacts')) return 'Contacts';
+    if (location.pathname.startsWith('/tasks')) return 'Tasks';
     return 'Dashboard';
   }, [location.pathname]);
 
@@ -61,6 +63,7 @@ function App() {
                 <Route path="/accounts/:companyId" element={<CompanyDetailPage />} />
                 <Route path="/contacts" element={<ContactsPage />} />
                 <Route path="/contacts/:contactId" element={<ContactDetailPage />} />
+                <Route path="/tasks" element={<TasksPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
                 <Route path="/settings" element={<div className="p-8 text-slate-700">Settings page coming soon.</div>} />
               </Routes>

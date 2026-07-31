@@ -32,6 +32,13 @@ function NavIcon({ type, active }) {
           <path d="M9 17h6" strokeLinecap="round" />
         </svg>
       );
+    case 'tasks':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={iconClassName}>
+          <circle cx="12" cy="12" r="10" />
+          <path d="m9 12 2 2 4-4" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      );
     case 'contacts':
       return (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={iconClassName}>
@@ -82,6 +89,7 @@ const navItems = [
   { label: 'Dashboard', icon: 'dashboard', path: '/' },
   { label: 'Companies', icon: 'accounts', path: '/accounts' },
   { label: 'Deals', icon: 'deals', path: '/deals' },
+  { label: 'Tasks', icon: 'tasks', path: '/tasks' },
   { label: 'Contacts', icon: 'contacts', path: '/contacts' },
   { label: 'Template', icon: 'template', path: '/deals' },
   { label: 'Sequences', icon: 'sequences', path: '/deals' },

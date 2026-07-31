@@ -3,14 +3,18 @@ import PropTypes from 'prop-types';
 import { ChevronRight } from 'lucide-react';
 import { getNotes, createNote } from '../services/noteApi';
 import { readStoredUser } from '../utils/auth';
+import { useTasks } from '../context/TasksContext';
+import axiosInstance from '../services/axiosInstance';
 
 const tabs = ['All Activities', 'Notes', 'Tasks'];
 
 export default function RecordActivityTabs({ activities = [], entityType, entityId, initialTasks = [] }) {
+  const { createTask, toggleTaskStatus } = useTasks();
   const [activeTab, setActiveTab] = useState(tabs[0]);
   const [notes, setNotes] = useState([]);
   const [notesLoading, setNotesLoading] = useState(true);
-  const [tasks, setTasks] = useState(initialTasks);
+  const [tasks, setTasks] = useState([]);
+  const [tasksLoading, setTasksLoading] = useState(true);
   const [noteDraft, setNoteDraft] = useState('');
   const [taskDraft, setTaskDraft] = useState('');
   const [taskDueDate, setTaskDueDate] = useState('');
@@ -28,6 +32,36 @@ export default function RecordActivityTabs({ activities = [], entityType, entity
       .finally(() => {
         if (!cancelled) setNotesLoading(false);
       });
+    return () => {
+      cancelled = true;
+    };
+  }, [entityType, entityId]);
+
+  useEffect(() => {
+    if (!entityType || !entityId) return;
+    let cancelled = false;
+    setTasksLoading(true);
+
+    let param = '';
+    if (entityType === 'deal') param = 'associatedDeals';
+    if (entityType === 'contact') param = 'associatedContacts';
+    if (entityType === 'company') param = 'associatedCompanies';
+
+    axiosInstance.get('/tasks', { params: { [param]: entityId } })
+      .then((res) => {
+        if (!cancelled) {
+          const list = (res.data?.data || []).map(t => ({
+            ...t,
+            id: t._id || t.id,
+          }));
+          setTasks(list);
+        }
+      })
+      .catch((err) => console.error('Failed to load tasks:', err))
+      .finally(() => {
+        if (!cancelled) setTasksLoading(false);
+      });
+
     return () => {
       cancelled = true;
     };
@@ -51,18 +85,44 @@ export default function RecordActivityTabs({ activities = [], entityType, entity
     }
   };
 
-  const addTask = () => {
+  const addTask = async () => {
     if (!taskDraft.trim()) return;
-    setTasks((current) => [
-      { id: `task-${Date.now()}`, label: taskDraft.trim(), dueDate: taskDueDate, done: false },
-      ...current,
-    ]);
-    setTaskDraft('');
-    setTaskDueDate('');
+
+    let assocField = {};
+    if (entityType === 'deal') assocField.associatedDeals = [entityId];
+    if (entityType === 'contact') assocField.associatedContacts = [entityId];
+    if (entityType === 'company') assocField.associatedCompanies = [entityId];
+
+    try {
+      const created = await createTask({
+        title: taskDraft.trim(),
+        dueDate: taskDueDate ? new Date(`${taskDueDate}T08:00:00`).toISOString() : undefined,
+        status: 'Open',
+        priority: 'None',
+        taskType: 'To-do',
+        ...assocField,
+      });
+      setTasks((current) => [created, ...current]);
+      setTaskDraft('');
+      setTaskDueDate('');
+    } catch (err) {
+      console.error('Failed to add task:', err);
+    }
   };
 
-  const toggleTask = (id) => {
-    setTasks((current) => current.map((task) => (task.id === id ? { ...task, done: !task.done } : task)));
+  const toggleTask = async (id) => {
+    try {
+      const updated = await toggleTaskStatus(id);
+      setTasks((current) =>
+        current.map((task) =>
+          task.id === id || task._id === id
+            ? { ...updated, id: updated._id || updated.id }
+            : task
+        )
+      );
+    } catch (err) {
+      console.error('Failed to toggle task:', err);
+    }
   };
 
   const toggleExpanded = (id) => {
@@ -209,7 +269,9 @@ export default function RecordActivityTabs({ activities = [], entityType, entity
               </button>
             </div>
 
-            {tasks.length === 0 ? (
+            {tasksLoading ? (
+              <p className="text-sm text-slate-400">Loading tasks…</p>
+            ) : tasks.length === 0 ? (
               <p className="text-sm text-slate-400">No tasks yet.</p>
             ) : (
               tasks.map((task) => (
@@ -220,15 +282,19 @@ export default function RecordActivityTabs({ activities = [], entityType, entity
                   <span className="flex items-center gap-3">
                     <input
                       type="checkbox"
-                      checked={task.done}
+                      checked={task.status === 'Completed'}
                       onChange={() => toggleTask(task.id)}
                       className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
                     />
-                    <span className={`text-sm ${task.done ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
-                      {task.label}
+                    <span className={`text-sm ${task.status === 'Completed' ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
+                      {task.title}
                     </span>
                   </span>
-                  {task.dueDate && <span className="text-xs text-slate-400">Due {task.dueDate}</span>}
+                  {task.dueDate && (
+                    <span className="text-xs text-slate-400">
+                      Due {new Date(task.dueDate).toLocaleDateString()}
+                    </span>
+                  )}
                 </label>
               ))
             )}
